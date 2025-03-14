@@ -19,6 +19,8 @@
  '((1 . format)
    (1 . code)
    (1 . target)
+   (1 . header)
+   (1 . source)
    (1 . guard)
    (1 . include)
    (1 . variable)

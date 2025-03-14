@@ -35,17 +35,50 @@
 		  when pos do (write-string replacement out)
 		  while pos)))
 
+(defmacro warning! (&rest rest)
+  `(format t ,@rest))
+
+;; storing file name during compiling
+(defparameter *target-file* "main.c")
 ;; storing line num and col num of target's ASTs
 (defparameter *ast-lines* (make-hash-table :test 'equal))
 
-(defun ast-key< (line-n col-n)
-  (format nil "~D:~D" line-n col-n))
+(defun ast-key< (line-n col-n &key (file *target-file*))
+  (format nil "~A:~D:~D" *target-file* line-n col-n))
+
+(defun current-ast< (&optional (plus-line 0) (plus-col 0))
+  (let* ((line-n (funcall *line-num* 0))
+         (col-n  (funcall *col-num* 0))
+         (ast-key (ast-key< (+ line-n plus-line) (+ col-n plus-col))))
+    (display "M:" ast-key (gethash ast-key *ast-lines*) #\NewLine)
+    (gethash ast-key *ast-lines*)))
+
+(defparameter *line-num* (let ((count 1))
+                           #'(lambda (step &key reset)
+                               (if reset
+                                   (setf count reset)
+                                   (setf count (+ count step))))))
+
+(defparameter *col-num* (let ((count 1))
+                          #'(lambda (step &key reset)
+                              (if reset
+                                  (setf count reset)
+                                  (setf count (+ count step))))))
 
 (defmacro set-ast-line (out)
   (let ((line-n (gensym))
-        (col-n  (gensym)))
-  `(multiple-value-bind (,line-n ,col-n) ,out
-     (setf (gethash (ast-key< ,line-n ,col-n) *ast-lines*) (cdr (backtrace))))))
+        (col-n  (gensym))
+        (result (gensym))
+        (item   (gensym)))
+    `(let* ((,line-n (funcall *line-num* 0))
+            (,col-n  (funcall *col-num* 0))
+            (,item   (gethash (ast-key< ,line-n ,col-n) *ast-lines*))
+            (,result ,out))
+       (display (ast-key< ,line-n ,col-n) "")
+       (setf (getf ,item 'res) ,result)
+       (unless (getf ,item 'bt)
+         (setf (getf ,item 'bt)  (cdr (backtrace))))
+       (setf (gethash (ast-key< ,line-n ,col-n) *ast-lines*) ,item))))
 
 (defun hash-table-keys< (ht)
   (let ((keys nil))
@@ -66,43 +99,31 @@
       (when (eq (car trace) 'COMPILE-TARGET) (return t)))
     bt))
 
-(setf sb-ext:*invoke-debugger-hook*
-      #'(lambda (&rest args)
-          (format *error-output* ";~%")
-          (format *error-output* "; lcc error:~%")
-          (format *error-output* ";~%")
-          (format *error-output* "; ~A~%" (car args))
-          (format *error-output* ";~%")
-          (format *error-output* "; compiling ~S ~A ~%" (or *compile-file-truename* *load-truename*) (uiop:command-line-arguments))
-          (format *error-output* ";~%")
-          (format *error-output* "Backtrace:~%")
-          (let ((counter 0))
-            (setq *print-pretty* nil)
-            (dolist (trace (sb-debug:list-backtrace))
-              (format *error-output* "[~A] ~A~%" counter
-                      (if (hash-table-p (car (last trace))) (without-last trace) trace))
-              (when (eq (car trace) 'COMPILE-TARGET) (return t))
-              (setq counter (1+ counter)))
-            (setq *print-pretty* t))
-          (sb-ext:exit)))
+;; (setf sb-ext:*invoke-debugger-hook*
+;;       #'(lambda (&rest args)
+;;           (format *error-output* ";~%")
+;;           (format *error-output* "; lcc error:~%")
+;;           (format *error-output* ";~%")
+;;           (format *error-output* "; ~A~%" (car args))
+;;           (format *error-output* ";~%")
+;;           (format *error-output* "; compiling ~S ~A ~%" (or *compile-file-truename* *load-truename*) (uiop:command-line-arguments))
+;;           (format *error-output* ";~%")
+;;           (format *error-output* "Backtrace:~%")
+;;           (let ((counter 0))
+;;             (setq *print-pretty* nil)
+;;             (dolist (trace (sb-debug:list-backtrace))
+;;               (format *error-output* "[~A] ~A~%" counter
+;;                       (if (hash-table-p (car (last trace))) (without-last trace) trace))
+;;               (when (eq (car trace) 'COMPILE-TARGET) (return t))
+;;               (setq counter (1+ counter)))
+;;             (setq *print-pretty* t))
+;;           (sb-ext:exit)))
 
 (defun print-trace ()
   (format t "~A" (sb-debug:list-backtrace)))
 
 (defun display (&rest args)
   (format t "~{~A~^ ~}" args))
-
-(defparameter *line-num* (let ((count 1))
-                           #'(lambda (step &key reset)
-                               (if reset
-                                   (setf count 1)
-                                   (setf count (+ count step))))))
-
-(defparameter *col-num* (let ((count 1))
-                          #'(lambda (step &key reset)
-                              (if reset
-                                  (setf count 1)
-                                  (setf count (+ count step))))))
 
 (defvar *new-line* (format nil "~%"))
 
@@ -111,19 +132,18 @@
         (col-n  (funcall *col-num* 0))
         (result (apply 'format (append (list nil ctrl) rest))))
     (apply 'format (list *output* result))
-    (let* ((trimmed (string-left-trim " " result))
-           (space-count (- (length result) (length trimmed)))
-           (index (search *new-line* result :from-end t))
-          (line-count (str:count-substring *new-line* result)))
+    (let* ((index (search *new-line* result :from-end t))
+           (line-count (str:count-substring *new-line* result)))
       (funcall *line-num* line-count)
       (if index (progn
                   (let ((last-line (str:substring (1+ index) t result)))
-                    (setq trimmed (string-left-trim " " last-line))
-                    (funcall *col-num* 0 :reset t)
-                    (funcall *col-num* (+ (1- (- (length result) index)) (length trimmed)))))
+                    (funcall *col-num* 0 :reset 1)
+                    (funcall *col-num* (1- (- (length result) index)))))
           (funcall *col-num* (length result)))
-      (display line-n (+ col-n space-count) result)
-      (values line-n col-n))))
+      (display result #\NewLine)
+      ;; (display line-n (+ col-n space-count) result)
+      ;; (values line-n col-n)
+      result)))
 
 (defun read-file (path)
   (let ((targets '()))
@@ -161,4 +181,4 @@
   (and (symbolp symbol1) (symbolp symbol2) (string-equal (symbol-name symbol1) (symbol-name symbol2))))
 
 (defun is-array (desc)
-  (when (and (listp desc) (key-eq (first desc) (intent "[")) (key-eq (car (last desc)) (intent "]"))) t))
+  (when (and (listp desc) (key-eq (first desc) (intern "[")) (key-eq (car (last desc)) (intern "]"))) t))

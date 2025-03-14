@@ -1,0 +1,4 @@
+
+sbcl --script test/basic.lisp
+sbcl --script lcc.lisp test/sha1/sha1.lisp
+sbcl --script lcc.lisp test/method/method.lisp

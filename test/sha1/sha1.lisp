@@ -287,12 +287,12 @@
         ;; * Set Corrupted when overflow has occurred.
         ;; *
         {static} (variable uint32_t addTemp)
-        (@define (code "SHA1AddLength(context, length)		\\
-(addTemp = (context)->Length_Low,			\\
-(context)->Corrupted =					\\
-(((context)->Length_Low += (length)) < addTemp) &&	\\
-(++(context)->Length_High == 0) ? shaInputTooLong	\\
-: (context)->Corrupted )"))
+        (@define (code "SHA1AddLength(context, length) \\
+(addTemp = (context)->Length_Low, \\
+(context)->Corrupted = \\
+(((context)->Length_Low += (length)) < addTemp) && \\
+(++(context)->Length_High == 0) ? shaInputTooLong \\
+: (context)->Corrupted)"))
 
         ;; * Local Function Prototypes *
         {declare} {static} (function SHA1ProcessMessageBlock ((SHA1Context * context)))

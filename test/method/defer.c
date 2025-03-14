@@ -21,13 +21,24 @@ void Sample_PrintBoth (Sample  * this) {
   Sample_PrintAttrA (this );
   Sample_PrintAttrB (this );
 }
+void callback_caller(void (**cbp)(void)) {
+    (*cbp)();
+}
 int main () {
   { /* SCOPE178 */
+    int * returned_pointer = NULL;
+    
     Sample s = {100, "domain.com"};
     Sample * sPtr = ((Sample *)malloc(sizeof(Sample )));
     if (sPtr == NULL) printf("dynamic memory allocation failed! sPtr\n");
     Sample_PrintBoth (&s);
-    return 0;
+    int a = 1;
+    returned_pointer = &(a); 
+    goto return_main;
+
+return_main:
+    printf("will be cleaning %d and %s\n", s.AttrA, s.AttrB);
     free(sPtr);
+    return (*returned_pointer);
   } /* SCOPE178 */
 }

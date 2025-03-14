@@ -32,39 +32,56 @@
     (let ((name    (car target))
 	      (ir      nil)
 	      (globals nil))
-	  (cond ((key-eq name '|target|)
-	         (setq ir  (specify-target target))
-	         (setq globals (create-globals ir))
-             (let ((file (name ir))
+	  (cond ((or (key-eq name '|source|) (key-eq name '|header|)) ; target
+             (let ((file nil)
                    (reached-translation-unit nil)
                    (reached-file nil)
-                   (stdout (make-string-output-stream))
-                   (stderr (make-string-output-stream)))
-               (compile-target ir globals stdout stderr t)
-               (with-input-from-string (out-stream (get-output-stream-string stdout))
-                 (do ((s (read-line out-stream nil nil) (read-line out-stream nil nil)))
-                     ((eql s nil))
-                   (if reached-translation-unit
-                       (if reached-file
-                           (display "1>" s #\NewLine)  
-                           (when (str:containsp file s)
-                             (setq reached-file t)
-                             (display "1>" s #\NewLine)))
-                       (when (str:containsp "TranslationUnitDecl" s) (setq reached-translation-unit t)))
-                   ))
-               (with-input-from-string (err-stream (get-output-stream-string stderr))
-                 (do ((s (read-line err-stream nil nil) (read-line err-stream nil nil)))
-                     ((eql s nil))
-                   (display "2>" s #\NewLine)
-                   )
-                 ))
-	         (compile-target ir globals *standard-output* *error-output* nil))
-	        ((key-eq name '|class|)
+                   (stdout nil)
+                   (stderr nil))
+               ;; clear ast
+               (setq *ast-lines* (make-hash-table :test 'equal))
+               (dotimes (run (if (key-eq name '|header|) 1 2))
+                 ;; manipulate ast
+	             (setq ir  (specify-target target))
+	             (setq globals (create-globals ir))
+                 (setq file (name ir))
+                 (setq stdout (make-string-output-stream))
+                 (setq stderr (make-string-output-stream))
+                 (compile-target ir globals stdout stderr t (key-eq name '|header|))
+                 ;; iterate over errors
+                 (with-input-from-string (err-stream (get-output-stream-string stderr))
+                   (do ((s (read-line err-stream nil nil) (read-line err-stream nil nil)))
+                       ((eql s nil))
+                     (when (str:starts-with-p file s)
+                       (let* ((err-line (str:split #\: s :limit 4))
+                              (ast-key (ast-key< (parse-integer (nth 1 err-line)) (parse-integer (nth 2 err-line)) :file (file-namestring file))))
+                         (setf (getf (gethash ast-key *ast-lines*) 'info) (nth 3 err-line))
+                         (display "run" run ">" ast-key (getf (gethash ast-key *ast-lines*) 'info) #\NewLine)
+                         )))))
+               ;; iterate over ast lines
+               ;; (with-input-from-string (out-stream (get-output-stream-string stdout))
+               ;;   (do ((s (read-line out-stream nil nil) (read-line out-stream nil nil)))
+               ;;       ((eql s nil))
+               ;;     (if reached-translation-unit
+               ;;         (if reached-file
+               ;;             (display "1>" s #\NewLine)  
+               ;;             (when (str:containsp file s)
+               ;;               (setq reached-file t)
+               ;;               (display "d>" s #\NewLine)))
+               ;;         (when (str:containsp "TranslationUnitDecl" s) (setq reached-translation-unit t)))
+               ;;     ))
+               ) ; let
+             ;; compile ast
+             (when (key-eq name '|source|)
+	           (compile-target ir globals *standard-output* *error-output* nil nil)))
+	        ((key-eq name '|class|) ; class
 	         (setq ir  (specify-class  target))
 	         (setq globals (create-globals ir))
 	         (format t "lcc: globals in ~A~%" (cadr target))
 	         (print-specifiers  globals)
-	         (compile-class  ir globals))
+	         ;; clear ast
+             (setq *ast-lines* (make-hash-table :test 'equal))
+             (compile-class  ir globals))
 	        (t (error (format nil "target or class is missing for ~A" name)))))))
 
 (defun compile-lcc-file (file-name)
@@ -99,7 +116,7 @@
 (set-macro-character
  #\[ #'(lambda (stream char)
 	     (declare (ignore char))
-	     (list (intern "[") (car (read-delimited-list #\] stream t)) (intern "["))))
+	     (list (intern "[") (car (read-delimited-list #\] stream t)) (intern "]"))))
 
 (set-macro-character #\] (get-macro-character #\)) nil)
 
