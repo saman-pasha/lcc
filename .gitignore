@@ -11,3 +11,5 @@ test/method/method_main.o
 test/method/method.o
 /test/lambda/.libs
 *.o
+*.o
+/test/method/.libs
