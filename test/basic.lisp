@@ -78,3 +78,12 @@
 (assert (specify-enum '(|enum| |STATES| (STATE1) (STATE2)) '() 0 globals) nil "(enum STATES (STATE1) (STATE2))")
 
 (assert (specify-guard '(|guard| _GUARD_H_) '() 0 globals) nil "(guard _GUARD_H_)")
+
+(specify-type< '(|function| |func| ((|int| |x|) (|char| |c|)) (|returns| |int| |*|)) globals)
+(specify-type< '(|const| |function| |func| ((|int| |x|) (|char| |c|)) (|returns| |int| |*|)) globals)
+
+;; (assert (specify-type< '(|function| |func| ((|int| |x|) (|char| |c|)) (|returns| |int| |*|)) globals)
+;;   nil "(function func ((int x) (char c)) (returns int *))")
+;; (assert (specify-type< '(|const| |function| |func| ((|int| |x|) (|char| |c|)) (|returns| |int| |*|)) globals)
+;;   nil "(const function func ((int x) (char c)) (returns int *))")
+

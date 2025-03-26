@@ -39,25 +39,34 @@
                    (stdout nil)
                    (stderr nil))
                ;; clear ast
-               (setq *ast-lines* (make-hash-table :test 'equal))
-               (dotimes (run (if (key-eq name '|header|) 1 2))
-                 ;; manipulate ast
-	             (setq ir  (specify-target target))
+               (setq *ast-lines* '())
+               (push (make-hash-table :test 'equal) *ast-lines*)
+               (setq *ast-run* 0)
+               (setq ir      (specify-target target))
+               (setf *target-spec* ir)
+               (dotimes (run (if (key-eq name '|header|) 1 7)) ; 1,2,3 only for lambdas, 4,5,6 for resolvers
+                 (push (make-hash-table :test 'equal) *ast-lines*)
+                 (setq *ast-run* (1+ run))
 	             (setq globals (create-globals ir))
-                 (setq file (name ir))
-                 (setq stdout (make-string-output-stream))
-                 (setq stderr (make-string-output-stream))
-                 (compile-target ir globals stdout stderr t (key-eq name '|header|))
-                 ;; iterate over errors
-                 (with-input-from-string (err-stream (get-output-stream-string stderr))
-                   (do ((s (read-line err-stream nil nil) (read-line err-stream nil nil)))
-                       ((eql s nil))
-                     (when (str:starts-with-p file s)
-                       (let* ((err-line (str:split #\: s :limit 4))
-                              (ast-key (ast-key< (parse-integer (nth 1 err-line)) (parse-integer (nth 2 err-line)) :file (file-namestring file))))
-                         (setf (getf (gethash ast-key *ast-lines*) 'info) (nth 3 err-line))
-                         (display "run" run ">" ast-key (getf (gethash ast-key *ast-lines*) 'info) #\NewLine)
-                         )))))
+                 (setq file    (name ir))
+                 (setq stdout  (make-string-output-stream))
+                 (setq stderr  (make-string-output-stream))
+                 (setf *gensym-counter* 100)
+                 ;; manipulate ast
+	             (compile-target ir globals stdout stderr t (key-eq name '|header|))
+                 (when (> *ast-run* 3)
+                   ;; iterate over errors
+                   (with-input-from-string (err-stream (get-output-stream-string stderr))
+                     (do ((s (read-line err-stream nil nil) (read-line err-stream nil nil)))
+                         ((eql s nil))
+                       (when (str:starts-with-p file s)
+                         (let* ((err-line (str:split #\: s :limit 4))
+                                (ast-key (ast-key< (parse-integer (nth 1 err-line))
+                                           (parse-integer (nth 2 err-line)) :file (file-namestring file))))
+                           (setf (getf (gethash ast-key (nth 0 *ast-lines*)) 'info) (nth 3 err-line))
+                           (display "run" *ast-run* ">" ast-key
+                                    (getf (gethash ast-key (nth 0 *ast-lines*)) 'info) #\NewLine)
+                           ))))))
                ;; iterate over ast lines
                ;; (with-input-from-string (out-stream (get-output-stream-string stdout))
                ;;   (do ((s (read-line out-stream nil nil) (read-line out-stream nil nil)))
@@ -70,10 +79,13 @@
                ;;               (display "d>" s #\NewLine)))
                ;;         (when (str:containsp "TranslationUnitDecl" s) (setq reached-translation-unit t)))
                ;;     ))
-               ) ; let
-             ;; compile ast
-             (when (key-eq name '|source|)
-	           (compile-target ir globals *standard-output* *error-output* nil nil)))
+               ;; compile ast
+               (when (key-eq name '|source|)
+                 (push (make-hash-table :test 'equal) *ast-lines*)
+                 (setq *ast-run* (1+ *ast-run*))
+                 (setf *gensym-counter* 100)
+	             (compile-target ir globals *standard-output* *error-output* nil nil))
+               ))
 	        ((key-eq name '|class|) ; class
 	         (setq ir  (specify-class  target))
 	         (setq globals (create-globals ir))

@@ -32,12 +32,15 @@
 
 (defun format-type (const typeof modifier const-ptr name array-def globals &optional anonymous)
   (when anonymous (setq name (format nil "/* ~A */" name)))
-  (when const     (set-ast-line (output "const ")))
-  (compile-type-name typeof)
-  (when modifier  (output " ") (set-ast-line (output "~A" modifier)))
-  (when const-ptr (output " ") (set-ast-line (output "const" const-ptr)))
-  (when name      (output " ") (set-ast-line (output "~A" name)))
-  (compile-array array-def globals))
+  (if (key-eq typeof '|function|)
+      (compile-function array-def 0 '() t)
+      (progn
+        (when const     (set-ast-line (output "const ")))
+        (compile-type-name typeof)
+        (when modifier  (output " ") (set-ast-line (output "~A" modifier)))
+        (when const-ptr (output " ") (set-ast-line (output "const" const-ptr)))
+        (when name      (output " ") (set-ast-line (output "~A" name)))
+        (compile-array array-def globals))))
 
 (defun compile-type (desc globals &optional no-text)
   (multiple-value-bind (const typeof modifier const-ptr name array-def)
@@ -100,12 +103,14 @@
                        (if (null ast)
 	                       (set-ast-line (output "~A " obj))
                            (let ((info (getf ast 'info)))
-                             (display "GGGGG" info)
                              (if info
                                  (if (str:containsp "take the address with &" info)
                                      (set-ast-line (output "\&~A" obj))
-                                     (error (format nil "~A" info)))
+                                     (if (str:containsp "__lccLambda" info)
+                                         (set-ast-line (output "\&~A" obj))
+                                         (error (format nil "~A" info))))
                                  (set-ast-line (output "~A " obj)))))))))))
+        ((symbolp obj) (set-ast-line (output "~A " obj))) ; operators
 	    (t (error (format nil "syntax error \"~A\"" obj)))))
 
 (defun compile-unary (form globals)
@@ -216,10 +221,15 @@
                           (info (getf ast 'info)))
                      (if (null ast)
                          (progn
+                           (set-resolved ". ")
                            (set-ast-line (output ". ")))
-                         (if (and (str:containsp "member reference type" info) (str:containsp "is a pointer" info))
-                             (set-ast-line (output "->"))
-                             (warning! "lcc\: [warning] unresolved member reference type ~A~%" form))))
+                         (if (null info)
+                             (set-ast-line (output (current-resolved<)))
+                             (if (and (str:containsp "member reference type" info) (str:containsp "is a pointer" info))
+                                 (progn
+                                   (set-resolved "->")
+                                   (set-ast-line (output "->")))
+                                 (error (format nil "lcc\: unresolved member reference type ~A~%" form))))))
                    (let* ((li (cddr form))
                           (l (1- (length li))))
                      (loop
@@ -234,16 +244,35 @@
                           (opr-ast (current-ast< 0 (1+ (length (getf obj-ast 'res)))))
                           (ast     (current-ast< 0 (1+ (+ (length (getf obj-ast 'res)) (length (getf opr-ast 'res))))))
                           (info    (getf ast 'info)))
-                     (display "HHHHHH" info #\NewLine)
+                     (display "HHHHHH"  *ast-run* (getf obj-ast 'res) info #\NewLine)
                      (if (null ast)
-                         (progn
-                           (output "(")
-                           (compile-form (cadr form) globals)
-                           (set-ast-line (output "->"))
-                           ;; (compile-form (caddr form) globals)
-                           ;; we know it is atom symbol
-                           (set-ast-line (output "~A " (caddr form)))
-                           (output ")"))
+                         (let ((col-n       (funcall *col-num* 0))
+                               (res (current-resolved<)))
+                           (display "ORES" res)
+                           (if (null res)
+                               (progn
+                                 (output "(")
+                                 (compile-form (cadr form) globals)
+                                 (set-ast-line (output "->"))
+                                 ;; (compile-form (caddr form) globals)
+                                 ;; we know it is atom symbol
+                                 (set-ast-line (output "~A " (caddr form)))
+                                 (output ")"))
+                               (progn
+                                 (set-ast-line (output res))
+                                 (output "(")
+                                 (compile-form (cadr form) globals)
+                                 (let* ((li (cdddr form))
+                                        (l (1- (length li))))
+                                   (when (> (length li) 0) (output ", "))
+                                   (loop
+                                         for f in li
+                                         for i from 0 to l
+                                         do (progn
+                                              (compile-form f globals)
+                                              (when (< i l) (output ", ")))))
+                                 (output ")")
+                                 (funcall *col-num* 0 :reset (+ col-n (length res))))))
                          (if (str:containsp "no member named" info)
                              (let* ((col-n       (funcall *col-num* 0))
                                     (matches     (ppcre:all-matches-as-strings "'(struct\\s+)?\\w+'" info))
@@ -251,8 +280,11 @@
                                     (parts       (str:split #\Space (cadr matches))))
                                (display "gGGGGG" matches method parts)
                                (if (string= (car parts) "'struct")
-                                   (set-ast-line (output "~A_" (string-right-trim "'" (cadr parts))))
-                                   (warning! "lcc\: [warning] unresolved method reference type ~A~%" form))
+                                   (progn
+                                     (set-resolved (format nil "~A_~A" (string-right-trim "'" (cadr parts)) (string-trim "'" method)))
+                                     (display "ERES" (current-resolved< 0 1))
+                                     (set-ast-line (output "~A_" (string-right-trim "'" (cadr parts)))))
+                                   (error (format nil "lcc\: unresolved method reference type ~A~%" form)))
                                ;; (compile-form (caddr form) globals)
                                ;; we know it is atom symbol
                                (set-ast-line (output "~A " (string-trim "'" method)))
@@ -270,7 +302,7 @@
                                (output ")")
                                (display "FFFFFF" col-n (length (getf ast 'res)))
                                (funcall *col-num* 0 :reset (+ col-n (length (getf ast 'res)))))
-                             (warning! "lcc\: [warning] unresolved method reference type ~A~%" form)))))
+                             (error (format nil "lcc\: unresolved method reference type ~A~%" form))))))
 		          (t (unless (gethash func globals nil) (warning! "lcc\: [warning] undefined function ~A~%" func))
                      (set-ast-line (output "~A" func))
                      (output "(")
@@ -295,14 +327,17 @@
 
 (defun compile-set-form (form lvl globals)
   (when (= (rem (length (cdr form)) 2) 1) (error (format nil "wrong set form ~A" form)))
-  (output "~&~A" (indent lvl))
-  (loop for (x y) on (cdr form)
-        do (unless (null y)
-             (compile-form x globals)
-             (output " ")
-             (set-ast-line (output "= "))
-             (compile-form y globals)
-             (output ";~%"))))
+  (let ((len (length (cdr form))))
+    (loop for i from 0 to (1- len)
+        for (x y) on (cdr form)
+          do (when (= (mod i 2) 0)
+               (unless (null y)
+                 (output "~&~A" (indent lvl))
+                 (compile-form x globals)
+                 (output " ")
+                 (set-ast-line (output "= "))
+                 (compile-form y globals)
+                 (output ";~%"))))))
 
 (defun compile-block-form (form lvl globals)
   (when (< (length form) 2) (error (format nil "wrong block form ~A" form)))
@@ -399,7 +434,7 @@
 	    (is-register nil)
 	    (is-static   nil)
 	    (dynamics    '())
-	    (scope       (gensym "SCOPE"))
+	    (scope       "LET SCOPE")
 	    (locals      (copy-specifiers globals)))
     (output "~&~A" (indent lvl))
     (output "{ /* ~A */~%" scope)
@@ -493,14 +528,41 @@
 	    ('|static|   (setq is-static t))
 	    ('|extern|   (setq is-extern t))))
     (output "~&~A" (indent lvl))
-    (when is-extern (set-ast-line (output "extern ")))
+    (when is-extern   (set-ast-line (output "extern ")))
     (when is-static   (set-ast-line (output "static ")))
     (when is-register (set-ast-line (output "register ")))
     (when is-auto     (set-ast-line (output "auto ")))
     (compile-spec-type-value spec globals)
     (output ";~%")))
 
-(defun compile-function (spec lvl globals)
+(defun compile-lambda (spec lvl globals)
+  (let ((tmp-spec spec))
+    (setf *function-spec* spec)
+    (when (> *ast-run* 1)
+      (maphash #'(lambda (l-name l-spec)
+                   (let ((attrs (attrs l-spec))
+                         (body  (body l-spec)))
+                     (setf (attrs l-spec) (list '|declare|))
+                     (compile-lambda      l-spec 0 globals)
+                     (setf (attrs l-spec) attrs)
+                     (setf (body  l-spec) body)))
+               (inners spec)))
+
+    (if (> *ast-run* 1)
+        (let ((inners (inners spec)))
+          (setf (inners spec) (make-hash-table :test 'eql))
+          (compile-function     spec lvl globals)
+          ;; (setf (inners spec) inners)
+          )
+        (compile-function     spec lvl globals))
+    
+    (when (> *ast-run* 1)
+      (maphash #'(lambda (l-name l-spec)
+                   (compile-lambda     l-spec 0 globals))
+               (inners spec)))
+    (setf *function-spec* tmp-spec)))
+
+(defun compile-function (spec lvl globals &optional (asType nil))
   (let* ((is-static  nil)
 	     (is-declare nil)
 	     (is-inline  nil)
@@ -530,7 +592,11 @@
       (when is-inline (set-ast-line (output "__attribute__((weak)) ")))
       (when is-static (set-ast-line (output "static ")))
       (set-ast-line (output "~A " ret))
-      (set-ast-line (output "~A " (if is-method (format nil "~A_~A" (car name) (cdr name)) name)))
+      (set-ast-line (output "~A " (if is-method
+                                      (format nil "~A_~A" (car name) (cdr name))
+                                      (if asType
+                                          (format nil "(*~A)" name)
+                                          name))))
       (output "(")
       (when is-method
         (setf (gethash '|this| locals)
@@ -550,32 +616,32 @@
                  (when (< i lc) (output ", "))))
       (output ")")
       (if is-declare
-          (output ";~%")
+          (unless asType (output ";~%"))
           (progn
             (output " ")
             (output "{~%")))
-      (if is-declare
-	      (progn
-	        (set-ast-line (output "~&typedef "))
-            (set-ast-line (output "~A" ret))
-            (set-ast-line (output "(*~A_t) " (if is-method (format nil "~A_~A" (car name) (cdr name)) name)))
-            (output "(")
-            (when is-method
-              ;; (set-ast-line (output "~A " (car name)))
-              (compile-form (car name) globals)
-              (output " ")
-              (set-ast-line (output "* "))
-              (set-ast-line (output "this"))
-              (when (> (length cparams) 0) (output ", ")))
-            (loop
-                  for param in cparams
-                  with lc = (1- (length cparams))
-                  for i from 0 to lc
-                  do (progn
-                       (compile-spec-type-value param locals)
-                       (when (< i lc) (output ", "))))
-	        (output ")")
-            (output ";~%"))
+      (unless is-declare
+	      ;; (progn
+	      ;;   (set-ast-line (output "~&typedef "))
+          ;;   (set-ast-line (output "~A " ret))
+          ;;   (set-ast-line (output "(*~A_t) " (if is-method (format nil "~A_~A" (car name) (cdr name)) name)))
+          ;;   (output "(")
+          ;;   (when is-method
+          ;;     ;; (set-ast-line (output "~A " (car name)))
+          ;;     (compile-form (car name) globals)
+          ;;     (output " ")
+          ;;     (set-ast-line (output "* "))
+          ;;     (set-ast-line (output "this"))
+          ;;     (when (> (length cparams) 0) (output ", ")))
+          ;;   (loop
+          ;;         for param in cparams
+          ;;         with lc = (1- (length cparams))
+          ;;         for i from 0 to lc
+          ;;         do (progn
+          ;;              (compile-spec-type-value param locals)
+          ;;              (when (< i lc) (output ", "))))
+	      ;;   (output ")")
+          ;;   (unless asType (output ";~%")))
           (progn
 	        (compile-body body (+ lvl 1) locals)
 	        (output "~&~A" (indent lvl))

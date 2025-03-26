@@ -18,16 +18,6 @@ void Sample_SetAttrB (Sample  * this, char * b) {
   (this ->AttrB ) = b ;
 }
 void Sample_PrintBoth (Sample  * this) {
-  Sample_PrintAttrA (this );
-  Sample_PrintAttrB (this );
-}
-int main () {
-  { /* SCOPE178 */
-    Sample s = {100, "domain.com"};
-    Sample * sPtr = ((Sample *)malloc(sizeof(Sample )));
-    if (sPtr == NULL) printf("dynamic memory allocation failed! sPtr\n");
-    Sample_PrintBoth (&s);
-    return 0;
-    free(sPtr);
-  } /* SCOPE178 */
+  Sample_PrintAttrA(this );
+  Sample_PrintAttrB(this );
 }

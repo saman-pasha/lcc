@@ -46,11 +46,20 @@
         
         (method Sample->PrintBoth ()
                 (-> this PrintAttrA)
-                (-> this PrintAttrB))
+                (-> this PrintAttrB)))
+
+;;;; test struct methods
+(source "main.c" (:std #t
+                       :compile "-c main.c -o method_main.o"
+                       :link "-v -o method_main -L{$CWD} -lmethod_main.o -lmethod.o")
+        
+        (include "method.h")
 
         (function main () (returns int)
                   (let ((Sample s . '{ 100 "domain.com" })
+                        (Sample * sRef . #'(addressof s))
                         (Sample * sPtr . #'(alloc (sizeof Sample))))
                     (-> s PrintBoth)
-                    (return 0)))
-        )
+                    (-> s SetAttrA 124)
+                    (-> sRef PrintBoth)
+                    (return 0))))

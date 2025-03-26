@@ -38,21 +38,6 @@
 (defmacro warning! (&rest rest)
   `(format t ,@rest))
 
-;; storing file name during compiling
-(defparameter *target-file* "main.c")
-;; storing line num and col num of target's ASTs
-(defparameter *ast-lines* (make-hash-table :test 'equal))
-
-(defun ast-key< (line-n col-n &key (file *target-file*))
-  (format nil "~A:~D:~D" *target-file* line-n col-n))
-
-(defun current-ast< (&optional (plus-line 0) (plus-col 0))
-  (let* ((line-n (funcall *line-num* 0))
-         (col-n  (funcall *col-num* 0))
-         (ast-key (ast-key< (+ line-n plus-line) (+ col-n plus-col))))
-    (display "M:" ast-key (gethash ast-key *ast-lines*) #\NewLine)
-    (gethash ast-key *ast-lines*)))
-
 (defparameter *line-num* (let ((count 1))
                            #'(lambda (step &key reset)
                                (if reset
@@ -65,6 +50,34 @@
                                   (setf count reset)
                                   (setf count (+ count step))))))
 
+;; storing file name during compiling
+(defparameter *target-file* "main.c")
+;; current target spec during target specifying
+(defparameter *target-spec* nil)
+;; current function spec during function compiling
+(defparameter *function-spec* nil)
+;; storing line num and col num of target's ASTs
+(defparameter *ast-lines* '())
+;; stores current resolver run number
+(defparameter *ast-run* 0)
+
+(defun ast-key< (line-n col-n &key (file *target-file*))
+  (format nil "~A:~D:~D" *target-file* line-n col-n))
+
+(defun current-ast< (&optional (plus-line 0) (plus-col 0))
+  (let* ((line-n  (funcall *line-num* 0))
+         (col-n   (funcall *col-num* 0))
+         (ast-key (ast-key< (+ line-n plus-line) (+ col-n plus-col))))
+    (display "M:" ast-key *ast-run* (gethash ast-key (nth 1 *ast-lines*)) #\NewLine)
+    (gethash ast-key (nth 1 *ast-lines*))))
+
+(defun current-resolved< (&optional (plus-line 0) (plus-col 0))
+  (let* ((line-n  (funcall *line-num* 0))
+         (col-n   (funcall *col-num* 0))
+         (ast-key (ast-key< (+ line-n plus-line) (+ col-n plus-col))))
+    (display "R:" ast-key *ast-run* (gethash ast-key (nth *ast-run* *ast-lines*)) #\NewLine)
+    (getf (gethash ast-key (nth *ast-run* *ast-lines*)) 'res)))
+
 (defmacro set-ast-line (out)
   (let ((line-n (gensym))
         (col-n  (gensym))
@@ -72,13 +85,27 @@
         (item   (gensym)))
     `(let* ((,line-n (funcall *line-num* 0))
             (,col-n  (funcall *col-num* 0))
-            (,item   (gethash (ast-key< ,line-n ,col-n) *ast-lines*))
+            (,item   (gethash (ast-key< ,line-n ,col-n) (nth 0 *ast-lines*)))
             (,result ,out))
-       (display (ast-key< ,line-n ,col-n) "")
+       (display "set-run" *ast-run* ">" (ast-key< ,line-n ,col-n) "")
        (setf (getf ,item 'res) ,result)
        (unless (getf ,item 'bt)
          (setf (getf ,item 'bt)  (cdr (backtrace))))
-       (setf (gethash (ast-key< ,line-n ,col-n) *ast-lines*) ,item))))
+       (setf (gethash (ast-key< ,line-n ,col-n) (nth 0 *ast-lines*)) ,item))))
+
+(defmacro set-resolved (outstr)
+  (let ((line-n (gensym))
+        (col-n  (gensym))
+        (result (gensym))
+        (item   (gensym)))
+    `(let* ((,line-n (funcall *line-num* 0))
+            (,col-n  (funcall *col-num* 0))
+            (,item   (gethash (ast-key< ,line-n ,col-n) (nth *ast-run* *ast-lines*))))
+       (display "set-resolved" *ast-run* ">" (ast-key< ,line-n ,col-n) "")
+       (setf (getf ,item 'res) ,outstr)
+       (unless (getf ,item 'bt)
+         (setf (getf ,item 'bt)  (cdr (backtrace))))
+       (setf (gethash (ast-key< ,line-n ,col-n) (nth *ast-run* *ast-lines*)) ,item))))
 
 (defun hash-table-keys< (ht)
   (let ((keys nil))
@@ -182,3 +209,9 @@
 
 (defun is-array (desc)
   (when (and (listp desc) (key-eq (first desc) (intern "[")) (key-eq (car (last desc)) (intern "]"))) t))
+
+(defun replace-args< (name-values args)
+  (dolist (nv name-values)
+    (return-from replace-args<
+      (loop for arg in args
+            collect (str:replace-all (car nv) (uiop:native-namestring (cadr nv)) arg)))))

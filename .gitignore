@@ -1,3 +1,13 @@
 *.lisp#
 *.h~
 *.lisp~
+test/lambda/lambda.o
+test/lambda/lambda.lo
+/test/method/.libs
+/test/method/.libs
+test/method/method.o
+test/method/method_main.lo
+test/method/method_main.o
+test/method/method.o
+/test/lambda/.libs
+*.o
