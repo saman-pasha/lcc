@@ -2,9 +2,8 @@
 
 (defvar *output* t)
 
-(defvar *unaries* '(|+| |-| |++| |++#| |--| |--#| |~| |!| |not| |*| |contentof| |&| |addressof|))
-(defvar *operators* '(|+| |-| |*| |/| |%| |==| |!=| |>| |<| |>=| |<=| |^| |xor| |<<| |>>|
-		              |&&| |and| |or| |&| |bitand| |bitor|))
+(defvar *unaries* '(|+| |-| |++| |++#| |--| |--#| |~| |not| |cof| |aof|))
+(defvar *operators* '(|+| |-| |*| |/| |%| |==| |!=| |>| |<| |>=| |<=| |^| |<<| |>>| |xor| |and| |or| |bitand| |bitor|))
 (defvar *assignments* '(|=| |+=| |-=| |*=| |/=| |%=| |<<=| |>>=|))
 (defvar *modifiers* '(|&| |*| |**|))
 
@@ -50,10 +49,10 @@
                                   (setf count reset)
                                   (setf count (+ count step))))))
 
-;; storing file name during compiling
-(defparameter *target-file* "main.c")
 ;; current target spec during target specifying
 (defparameter *target-spec* nil)
+;; storing file name during compiling
+(defparameter *target-file* "main.c")
 ;; current function spec during function compiling
 (defparameter *function-spec* nil)
 ;; storing line num and col num of target's ASTs

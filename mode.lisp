@@ -18,20 +18,20 @@
  'font-lock-keyword-face
  '((1 . format)
    (1 . code)
-   (1 . target)
    (1 . header)
    (1 . source)
    (1 . guard)
    (1 . include)
-   (1 . variable)
-   (1 . function)
-   (1 . returns)
+   (1 . var)
+   (1 . lambda)
+   (1 . func)
+   (1 . out)
    (1 . enum)
    (1 . struct)
    (1 . union)
    (1 . member)
    (1 . method)
-   (1 . declares)
+   (1 . declare)
    (1 . typedef)
    (1 . set)
    (1 . nth)
@@ -54,6 +54,7 @@
    (1 . new)
    (1 . printf)
    (1 . scanf)
+   (1 . free)
    ))
 
 (defun lcc-add-attributes (face-name keyword-rules)
@@ -74,11 +75,13 @@
 (lcc-add-attributes
  'font-lock-preprocessor-face
  '((1 . static)
-   (1 . declare)
+   (1 . decl)
    (1 . inline)
    (1 . extern)
    (1 . register)
    (1 . auto)
+   (1 . $)
+   (1 . ->)
    ))
 
 (defun lcc-add-types (face-name keyword-rules)
@@ -98,7 +101,9 @@
  
 (lcc-add-types
  'font-lock-type-face
- '((1 . this)
+ '((1 . const)
+   (1 . func)
+   (1 . this)
    (1 . void)
    (1 . unsigned)
    (1 . char)
@@ -169,7 +174,7 @@
 
 (font-lock-add-keywords
  'lisp-mode
- '(("(function[ \t\n]+\\(\\(\\sw\\|\\s_\\)+\\)[ \t\n]*"
+ '(("(func[ \t\n]+\\(\\(\\sw\\|\\s_\\)+\\)[ \t\n]*"
     (1 'font-lock-function-name-face))))
 
 (font-lock-add-keywords

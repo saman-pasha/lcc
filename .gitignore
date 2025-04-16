@@ -13,3 +13,16 @@ test/method/method.o
 *.o
 *.o
 /test/method/.libs
+.\#backend.lisp
+.\#specifier.lisp
+*.lo
+test/basic_main
+test/lambda/lambda.c.run1.c
+test/lambda/lambda.c.run2.c
+test/lambda/lambda.c.run3.c
+test/method/main.c.run1.c
+test/method/main.c.run2.c
+test/method/main.c.run3.c
+test/method/method.c.run1.c
+test/method/method.c.run2.c
+test/method/method.c.run3.c

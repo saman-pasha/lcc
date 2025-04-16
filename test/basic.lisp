@@ -1,89 +1,63 @@
-(in-package :cl-user)
+(header "basic.h" (:std #f :compile #f :link #f)
+        (include <stdio.h> <stdint.h>)
 
-(require "asdf")
+        (guard __TEST_H__
+          (@define (code "MAX_AMOUNT 1000"))
+          (@define (code "MACRO (x, y) x + y * x + y"))
 
-;;; The following lines added by ql:add-to-init-file:
-#-quicklisp
-(let ((quicklisp-init (merge-pathnames "quicklisp/setup.lisp"
-                        (user-homedir-pathname))))
-  (when (probe-file quicklisp-init)
-    (load quicklisp-init)))
+          (typedef int * intptr)
 
-(asdf:load-system "lcc")
+          (enum COLORS
+            (RED . 0)
+            (GREEN)
+            (BLUE))
 
-(in-package :lcc)
+          (union Mixed
+            (member int x)
+            (member float y))
 
-(defvar globals (make-hash-table :test 'eql))
+          (struct Employee
+            (member int id)
+            (member char * name)
+            (union
+              (member int tag_id)
+              (member char * custom_tag)
+              (declare tag))
+            (struct
+              (member int role_id)
+              (member char * role_name)
+              (member func resolve ((char * prob)) (out char *))
+              (member const func sign ((char * doc)))
+              (declare role)
+              (declare * sub_roles [])))
+        ))
 
-(assert (specify-variable '(|variable| |long| |x|) '() 0 globals) nil "(variable long x)")
-(assert (specify-variable '(|variable| |long| |var2| . 12) '() 0 globals) nil "(variable long var2 . 12)")
-(assert (specify-variable '(|variable| |long| |arr| []. '{1 2}) '() 0 globals) nil "(variable long arr [] . '{1 2})")
-(assert (specify-variable '(|variable| |long| |var3| . 24) '({|static|}) 0 globals) nil "{static} (variable long var3 . 24)")
+(source "basic.c"
+        (:std #f :compile "-c basic.c -o basic_main.o" :link "-v -o basic_main -L{$CWD} -lbasic_main.o")
+        
+        (include <stdlib.h> "basic.h")
 
-(assert (string= (compile-type< '(|long|) globals) "long") nil "long")
-(assert (string= (compile-type< '(|const| |long|) globals) "const long") nil "const long")
-(assert (string= (compile-type< '(|long| *) globals) "long *") nil "long *")
-(assert (string= (compile-type< '(|long| &) globals) "long &") nil "long &")
-(assert (string= (compile-type< '(|long| []) globals) "long []") nil "long []")
-(assert (string= (compile-type< '(|long| |x|) globals) "long x") nil "long x")
+        (func main ((int argc) (char * argv []))
+              (let ((Employee emp1 . '{ 1 "John Doe" })
+                    (Employee emp2 . '{ $id 1 $name "John Doe" })
+                    (Employee emp3 . '{ $id 1 $name "John Doe" $tag$tag_id 1001 })
+                    (Employee emp_array [] . '{ '{ 1 "John Doe" } '{ 2 "Saman Pasha" } })
+                    (Employee * emp . #'(alloc (sizeof Employee)))
+                    (Employee * emps_arr . #'(alloc 5 (sizeof Employee)))
+                    (Employee * emps_ptr_arr . #'(alloc 10 (sizeof Employee *)))
+                    )
+                (free emp)
+                (set emp (aof emp1))
+                (printf "sum of a series: %d\n" (+ 1 2 3 4 5))
+                (printf "is id one? %s\n" (? (== ($ emp1 id) 1) "true" "false"))
+                (printf "first emp: %s, second emp: %s\n" ($ (nth 0 emp_array) name) ($ (nth 1 emp_array) name))
+                (printf "postfix ++#: %d, prefix ++: %d\n" (++# ($ emp id)) (++ ($ emp id)))
+                (+= ($ emp id) 1)
+                (printf "after assignment: %d\n" ($ emp1 id))
 
-(assert (string= (compile-type< '(|const| |long| *) globals) "const long *") nil "const long *")
-(assert (string= (compile-type< '(|const| |long| &) globals) "const long &") nil "const long &")
-(assert (string= (compile-type< '(|const| |long| []) globals) "const long []") nil "const long []")
-(assert (string= (compile-type< '(|const| |long| |x|) globals) "const long x") nil "const long x")
-(assert (string= (compile-type< '(|long| * |const|) globals) "long * const") nil "long * const")
-(assert (string= (compile-type< '(|long| & []) globals) "long & []") nil "long & []")
-(assert (string= (compile-type< '(|long| & |x|) globals) "long & x") nil "long & x")
-(assert (string= (compile-type< '(|long| |x| []) globals) "long x []") nil "long x []")
-
-(assert (string= (compile-type< '(|const| |long| * |const|) globals) "const long * const") nil "const long * const")
-(assert (string= (compile-type< '(|const| |long| & []) globals) "const long & []") nil "const long & []")
-(assert (string= (compile-type< '(|const| |long| & |x|) globals) "const long & x") nil "const long & x")
-(assert (string= (compile-type< '(|const| |long| |x| []) globals) "const long x []") nil "const long x []")
-(assert (string= (compile-type< '(|long| * |const| []) globals) "long * const []") nil "long * const []")
-(assert (string= (compile-type< '(|long| * |const| |x|) globals) "long * const x") nil "long * const x")
-(assert (string= (compile-type< '(|long| & |x| []) globals) "long & x []") nil "long & x []")
-
-(assert (string= (compile-type< '(|const| |long| * |const| []) globals) "const long * const []") nil "const long * const []")
-(assert (string= (compile-type< '(|const| |long| * |const| |x|) globals) "const long * const x") nil "const long * const x")
-
-(assert (string= (compile-type< '(|const| |long| * |const| |x| []) globals) "const long * const x []") nil "const long * const x []")
-
-(assert (string= (compile-operator< '(* 1 2 3) globals) "(1 * 2 * 3)") nil "(1 * 2 * 3)")
-
-(assert (string= (compile-unary< '(! 1) globals) "!1") nil "!1")
-(assert (string= (compile-unary< '(|++#| |x|) globals) "x++") nil "x++")
-
-(assert (string= (compile-form< '(|?| (> 2 1) (* |x| 2) (/ |x| 2)) globals) "(((2 > 1)) ? (x * 2) : (x / 2))") nil "(((2 > 1)) ? (x * 2) : (x / 2))")
-(assert (string= (compile-form< '(|cast| |uint| (* 2 2)) globals) "((unsigned int)(2 * 2))") nil "((unsigned int)((2 * 2)))")
-
-(assert (specify-function '(|function| |square| ((|int|)) (|returns| |int|)) '({|declare|}) 0 globals)
-  nil
-  "{declare} (function square ((int)) (returns int))")
-(assert (specify-function '(|function| |sum| ((|long| |x|) (|long| |y| . 2)) (-> |long|) (|return| (+ |x| |y|))) '() 0 globals)
-  nil
-  "(function sum ((long x) (long y . 2)) (-> long) (return (+ x y)))")
-(assert (specify-function '(|function| |square| ((|int| |x|)) (|->| |int|) (|return| (* |x| |x|))) '({|inline|} {|static|}) 0 globals)
-  nil
-  "{inline} {static} (function square ((int x)) (-> int) (return (* x x)))")
-(assert (specify-function '(|function| |main| ((|int| |argc|) (|char| ** |argv|)) (|return| 0)) '() 0 globals)
-  nil
-  "(function main ((int argc) (char ** argv)) (return 0))")
-
-;; (display (specify-preprocessor '(|@define| (|code| "HW \"Hello World!\"")) '() 0 globals))
-;; (assert (specify-preprocessor '(|@define| (|code| "HW \"Hello World!\"")) '() 0 globals) nil "(@define $\"HW \"Hello World!\"\"$)")
-;; (assert (spefify-preprocessor '(|@define| (|code| "SQUARE (x) x * x")) '() 0 globals) nil "(@define $\"SQUARE (x) x * x\"S)")
-
-(assert (specify-enum '(|enum| (CONST1 . 0) (CONST2)) '() 0 globals) nil "(enum (CONST1 . 0) (CONST2))")
-(assert (specify-enum '(|enum| |STATES| (STATE1) (STATE2)) '() 0 globals) nil "(enum STATES (STATE1) (STATE2))")
-
-(assert (specify-guard '(|guard| _GUARD_H_) '() 0 globals) nil "(guard _GUARD_H_)")
-
-(specify-type< '(|function| |func| ((|int| |x|) (|char| |c|)) (|returns| |int| |*|)) globals)
-(specify-type< '(|const| |function| |func| ((|int| |x|) (|char| |c|)) (|returns| |int| |*|)) globals)
-
-;; (assert (specify-type< '(|function| |func| ((|int| |x|) (|char| |c|)) (|returns| |int| |*|)) globals)
-;;   nil "(function func ((int x) (char c)) (returns int *))")
-;; (assert (specify-type< '(|const| |function| |func| ((|int| |x|) (|char| |c|)) (|returns| |int| |*|)) globals)
-;;   nil "(const function func ((int x) (char c)) (returns int *))")
-
+                )
+              
+              (block
+                  (printf "Hi from inside of a block"))
+              1
+              (return 0)))

@@ -4,8 +4,8 @@
 (defun create-globals (ir &optional (globals (make-hash-table :test 'eql)))
   (maphash #'(lambda (name spec)
 	           (case (construct spec)
-		         (|@VARIABLE| (setf (gethash name globals) spec))
-		         (|@FUNCTION| (setf (gethash name globals) spec))
+		         (|@VAR|      (setf (gethash name globals) spec))
+		         (|@FUNC|     (setf (gethash name globals) spec))
 		         (|@METHOD|   (setf (gethash name globals) spec))
 		         (|@TYPEDEF|  (setf (gethash name globals) spec))
 		         (|@ENUM|
@@ -14,12 +14,12 @@
 		         (|@STRUCT|
 		          (setf (gethash name globals) spec)
 		          (maphash #'(lambda (k v)
-			                   (when (eql (construct v) '|@DECLARES|) (setf (gethash k globals) v)))
+			                   (when (eql (construct v) '|@DECLARE|) (setf (gethash k globals) v)))
 			               (inners spec)))
 		         (|@UNION|
 		          (setf (gethash name globals) spec)
 		          (maphash #'(lambda (k v)
-			                   (when (eql (construct v) '|@DECLARES|) (setf (gethash k globals) v)))
+			                   (when (eql (construct v) '|@DECLARE|) (setf (gethash k globals) v)))
 			               (inners spec)))
 		         (|@GUARD| (create-globals spec globals))
 		         (otherwise nil)))
@@ -30,31 +30,31 @@
 (defun compile-ast (targets)
   (dolist (target targets)
     (let ((name    (car target))
-	      (ir      nil)
-	      (globals nil))
+	      (ir      (specify-target target)))
+      (setf *target-spec* ir)
+      (setf *target-file* (file-namestring (name ir)))
 	  (cond ((or (key-eq name '|source|) (key-eq name '|header|)) ; target
-             (let ((file nil)
+             (let ((file (name ir))
+                   (globals nil)
                    (reached-translation-unit nil)
                    (reached-file nil)
                    (stdout nil)
                    (stderr nil))
-               ;; clear ast
+               ;; clear ir
                (setq *ast-lines* '())
                (push (make-hash-table :test 'equal) *ast-lines*)
                (setq *ast-run* 0)
-               (setq ir      (specify-target target))
-               (setf *target-spec* ir)
-               (dotimes (run (if (key-eq name '|header|) 1 7)) ; 1,2,3 only for lambdas, 4,5,6 for resolvers
+               (dotimes (run (if (key-eq name '|header|) 1 3)) ; resolver runs
                  (push (make-hash-table :test 'equal) *ast-lines*)
-                 (setq *ast-run* (1+ run))
 	             (setq globals (create-globals ir))
-                 (setq file    (name ir))
+                 (setq *ast-run* (1+ run))
+                 (unless (key-eq name '|header|)
+                   (setq file (format nil "~A.run~D.~A" (name ir) *ast-run* (pathname-type (name ir)))))
                  (setq stdout  (make-string-output-stream))
                  (setq stderr  (make-string-output-stream))
                  (setf *gensym-counter* 100)
                  ;; manipulate ast
-	             (compile-target ir globals stdout stderr t (key-eq name '|header|))
-                 (when (> *ast-run* 3)
+	             (compile-target file ir globals stdout stderr t (key-eq name '|header|))
                    ;; iterate over errors
                    (with-input-from-string (err-stream (get-output-stream-string stderr))
                      (do ((s (read-line err-stream nil nil) (read-line err-stream nil nil)))
@@ -62,11 +62,10 @@
                        (when (str:starts-with-p file s)
                          (let* ((err-line (str:split #\: s :limit 4))
                                 (ast-key (ast-key< (parse-integer (nth 1 err-line))
-                                           (parse-integer (nth 2 err-line)) :file (file-namestring file))))
+                                           (parse-integer (nth 2 err-line)) :file *target-file*)))
                            (setf (getf (gethash ast-key (nth 0 *ast-lines*)) 'info) (nth 3 err-line))
                            (display "run" *ast-run* ">" ast-key
-                                    (getf (gethash ast-key (nth 0 *ast-lines*)) 'info) #\NewLine)
-                           ))))))
+                                    (getf (gethash ast-key (nth 0 *ast-lines*)) 'info) #\NewLine))))))
                ;; iterate over ast lines
                ;; (with-input-from-string (out-stream (get-output-stream-string stdout))
                ;;   (do ((s (read-line out-stream nil nil) (read-line out-stream nil nil)))
@@ -84,17 +83,9 @@
                  (push (make-hash-table :test 'equal) *ast-lines*)
                  (setq *ast-run* (1+ *ast-run*))
                  (setf *gensym-counter* 100)
-	             (compile-target ir globals *standard-output* *error-output* nil nil))
+	             (compile-target *target-file* ir globals *standard-output* *error-output* nil nil))
                ))
-	        ((key-eq name '|class|) ; class
-	         (setq ir  (specify-class  target))
-	         (setq globals (create-globals ir))
-	         (format t "lcc: globals in ~A~%" (cadr target))
-	         (print-specifiers  globals)
-	         ;; clear ast
-             (setq *ast-lines* (make-hash-table :test 'equal))
-             (compile-class  ir globals))
-	        (t (error (format nil "target or class is missing for ~A" name)))))))
+	        (t (error (format nil "header or source form is missing for ~A" name)))))))
 
 (defun compile-lcc-file (file-name)
   (let ((file-path (make-pathname :directory (pathname-directory file-name)))

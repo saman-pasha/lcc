@@ -12,22 +12,22 @@
 
           ;; receivers of Sample struct
           ;; functions which will be defined in source file could use resolver
-          {declare} (method Sample->PrintAttrA ())
-          {declare} (method Sample->SetAttrA ((int a)))
-          {declare} (method Sample->PrintAttrB ())
-          {declare} (method Sample->SetAttrB ((char * b)))
-          {declare} (method Sample->PrintBoth ())
+          {decl} (method Sample->PrintAttrA ())
+          {decl} (method Sample->SetAttrA ((int a)))
+          {decl} (method Sample->PrintAttrB ())
+          {decl} (method Sample->SetAttrB ((char * b)))
+          {decl} (method Sample->PrintBoth ())
 
           ;; functions which defined inside header file couldn't use resolver
           {inline} (method Sample->WithoutResolver ()
                            (set (-> this AttrA) 12)
-                           (set ($ (contentof this) AttrB) "Saman")
+                           (set ($ (cof this) AttrB) "Saman")
                            (Sample_PrintBoth this))
           
         ))
 
 ;;;; definition of sample struct methods
-(source "method.c" (:std #t :compile #t :link #t)
+(source "method.c" (:std #t :compile #t :link #f)
         (include "method.h")
 
         ;; methods of Sample struct which access to Sample members and other methods
@@ -49,17 +49,17 @@
                 (-> this PrintAttrB)))
 
 ;;;; test struct methods
-(source "main.c" (:std #t
-                       :compile "-c main.c -o method_main.o"
-                       :link "-v -o method_main -L{$CWD} -lmethod_main.o -lmethod.o")
+(source "main.c" (:std #f
+                  :compile #t
+                  :link "-v -o main -L{$CWD} -lmain.o -lmethod.o")
         
-        (include "method.h")
+        (include <stdlib.h> "method.h")
 
-        (function main () (returns int)
-                  (let ((Sample s . '{ 100 "domain.com" })
-                        (Sample * sRef . #'(addressof s))
-                        (Sample * sPtr . #'(alloc (sizeof Sample))))
-                    (-> s PrintBoth)
-                    (-> s SetAttrA 124)
-                    (-> sRef PrintBoth)
-                    (return 0))))
+        (func main () (out int)
+              (let ((Sample s . '{ 100 "domain.com" })
+                    (Sample * sRef . #'(aof s))
+                    (Sample * sPtr . #'(alloc (sizeof Sample))))
+                (-> s PrintBoth)
+                (-> s SetAttrA 124)
+                (-> sRef PrintBoth)
+                (return 0))))
