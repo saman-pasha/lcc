@@ -26,3 +26,7 @@ test/method/main.c.run3.c
 test/method/method.c.run1.c
 test/method/method.c.run2.c
 test/method/method.c.run3.c
+test/lambda/defer.c.run1.c
+test/lambda/defer.c.run2.c
+test/lambda/defer.c.run3.c
+test/lambda/defer_main

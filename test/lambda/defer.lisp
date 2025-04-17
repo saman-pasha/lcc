@@ -1,24 +1,31 @@
+;;; defer for let variables destruction
 
-(source "lambda.c" (:std #f
-                         :compile "-c lambda.c -o lambda_main.o"
-                         :link "-v -o lambda_main -L{$CWD} -llambda_main.o -L{$CWD}../method -lmethod.o")
-        (include <stdio.h>)
-        (include "../method/method.h")
+(header "defer.h" ()
+        (guard __EMP_H__
+          (struct Employee
+            (member int Id)
+            (member char * Name))))
 
-        (variable function aFunc ((int x) (int y)) (returns int))
+(source "defer.c" (:std #f
+                   :compile #t
+                   :link "-v -o defer_main -L{$CWD} -ldefer.o")
+        (include <stdio.h> <stdlib.h> <string.h>)
+        (include "defer.h")
 
-        (function mul ((int x) (int y)) (returns int)
-                  (return (* x y)))
-        
-        (function main ()
-                  (let ((function funVar ((int x) (int y)) (returns int) .
-                                  '(lambda ((int x) (int y)) (returns int)
-                                    (return (+ x y))))
-                        (int y . 2)
-                        (Sample s))
-                    (set ($ s AttrA) 12)
-                    (set mulVar mul)
-                    
-                    (printf "product of x by y: %d\n" (mulVar 33 y))
-                    ))
-        )
+        (func main ()
+              (let ({defer '(lambda ((Employee ** empPtr))
+                             (let ((Employee * emp . #'(cof empPtr)))
+                               (printf "from defer, emp id is: %d and emp name is: %s\n" ($ emp Id) ($ emp Name))
+                               (free ($ (cof empPtr) Name))
+                               (free emp)
+                               (printf "from defer, emp is freed\n")))}
+                    (Employee * emp . #'(alloc (sizeof Employee))))
+
+                (set ($ emp Id)   100
+                     ($ emp Name) (calloc 8 (sizeof char)))
+
+                (memcpy ($ emp Name) "Jon Doe\0" 8)
+                
+                (printf "emp id is: %d and emp name is: %s\n" ($ emp Id) ($ emp Name))
+
+                )))

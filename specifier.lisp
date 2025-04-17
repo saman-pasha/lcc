@@ -54,11 +54,15 @@
 
 
 (defun add-param (spec parent)
-  (setf (gethash (name spec) (params parent)) spec))
+  (if (gethash (name spec) (params parent))
+      (error (format nil "paramter exists: ~A for ~A" spec parent))
+      (setf (gethash (name spec) (params parent)) spec)))
 
 (defun add-inner (spec parent)
-  (setf (gethash (name spec) (inners parent)) spec))
-
+  (if (gethash (name spec) (inners parent))
+      (error (format nil "inner exists: ~A in ~A" spec parent))
+      (setf (gethash (name spec) (inners parent)) spec)))
+  
 ;;;; specifier
 (defmethod print-object ((spec sp) stream)
   (print-unreadable-object (spec stream :type t :identity t)
@@ -347,15 +351,13 @@
 		       (specify-type< (without-last wl))
 		     (values const type modifier const-ptr variable array l)))
           ((and (listp l) (> (length desc) 2) (key-eq (nth (- (length desc) 2) desc) 'QUOTE)) ; ' list and lambda initializer
-           (let ((quoted (cadr (nthcdr (- (length desc) 2) desc))))
+           (let* ((def (nthcdr (- (length desc) 2) desc))
+                  (quoted (cadr def)))
              (if (key-eq (car quoted) '|lambda|)
                  (progn ; lambda initializer
-                   (let ((ldesc (cdr (nthcdr (- (length desc) 2) desc)))
-                         (lname (gensym "__lccLambda_")))
-                     (multiple-value-bind (const type modifier const-ptr variable array)
-		                 (specify-type< (without-last wl))
-		               (values const type modifier const-ptr variable array
-                               (list '|QUOTE| (append (list '|lambda| lname) (cdar ldesc)))))))
+                   (multiple-value-bind (const type modifier const-ptr variable array)
+		               (specify-type< (without-last wl))
+		             (values const type modifier const-ptr variable array def)))
                  (progn ; list initializer
 	               (setq l (nthcdr (- (length desc) 2) desc))
 		           (multiple-value-bind (const type modifier const-ptr variable array)
@@ -490,11 +492,15 @@
                    ((key-eq func 'FUNCTION) (specify-expr      (cadr def)))
 		           ((key-eq func 'QUOTE)
                     (let ((quoted (cadr def)))
-                      (if (key-eq (car quoted) '|lambda|)
-                          (let ((func-spec (specify-function quoted '()))) ; lambda
+                      (if (key-eq (car quoted) '|lambda|) ; lambda
+                          (let* ((fname (name *function-spec*))
+                                 (lname (if (str:starts-with-p "__lccLambda_" (symbol-name fname))
+                                            (gensym (format nil "~A_" fname))
+                                            (gensym (format nil "__lccLambda_~A_" fname))))
+                                 (func-spec (specify-function (append (list '|lambda| lname) (cdr quoted)) '())))
                             (add-inner func-spec *function-spec*)
-                            func-spec)
-                          (specify-list-expr quoted))))                    ; list
+                            (specify-symbol-expr lname))
+                          (specify-list-expr quoted))))   ; list
 		           ((and (> (length def) 2) (key-eq func '\|) (key-eq (cadr def) '\|))
 		            (specify-operator-expr (push '\|\| (cddr def))))
 		           ((and (> (length def) 2) (key-eq func '\|)) (specify-operator-expr def))
@@ -563,16 +569,22 @@
 (defun specify-let (def)
   (when (or (< (length def) 2) (not (listp (nth 1 def)))) (error (format nil "wrong let form ~A" def)))
   (let ((let-var (make-specifier (gensym "lcc#Let") '|@LET| nil nil nil nil nil nil '())))
-    (dolist (type-desc (nth 1 def))
-      (unless (and (not (null type-desc)) (listp type-desc))
-        (error (format nil "wrong variable definition form ~A" type-desc)))
-      (let ((is-auto     nil)
-	        (is-register nil)
-	        (is-static   nil)
-            (is-alloc    nil))
+    (let ((is-auto     nil)
+	      (is-register nil)
+	      (is-static   nil)
+          (is-alloc    nil)
+          (has-defer   nil))
+      (dolist (type-desc (nth 1 def))
+        (unless (and (not (null type-desc)) (listp type-desc))
+          (error (format nil "wrong variable definition form ~A" type-desc)))
         (cond ((and (key-eq (car type-desc) '|auto|)     (= (length (cdr type-desc)) 0)) (setq is-auto t))
 	          ((and (key-eq (car type-desc) '|register|) (= (length (cdr type-desc)) 0)) (setq is-register t))
 	          ((and (key-eq (car type-desc) '|static|)   (= (length (cdr type-desc)) 0)) (setq is-static t))
+	          ((key-eq (car type-desc)      '|defer|)
+               (let ((quoted (cadr type-desc)))
+                 (unless (and (= (length type-desc) 2) (key-eq '|lambda| (caadr quoted)))
+                   (error (format nil "wrong defer definition ~A" type-desc)))
+                 (setq has-defer quoted)))
 	          (t (multiple-value-bind (const typeof modifier const-ptr variable array value)
 		             (specify-type-value< type-desc)
 		           (when (and (listp value) (key-eq (first value) '|alloc|))
@@ -585,10 +597,11 @@
 		                 (setq value (list '|cast| (remove nil (list const typeof modifier const-ptr))
 				                           (list '|calloc| (nth 1 value) (nth 2 value))))))
 		           (let ((attributes '()))
-		             (when is-static   (push '|static|   attributes))
-		             (when is-register (push '|register| attributes))
-		             (when is-auto     (push '|auto|     attributes))
-		             (when is-alloc    (push '|alloc|    attributes))
+		             (when is-static   (push (cons '|static|   t) attributes))
+		             (when is-register (push (cons '|register| t) attributes))
+		             (when is-auto     (push (cons '|auto|     t) attributes))
+		             (when is-alloc    (push (cons '|alloc|    t) attributes))
+		             (when has-defer   (push (cons '|defer|    (specify-expr has-defer)) attributes))
                      (add-param
                          (make-specifier variable '|@VAR| const typeof modifier const-ptr array
                                          (if (null value) nil (specify-expr value)) attributes)
@@ -715,16 +728,17 @@
         (setq tmp-specifier *function-spec*)
         (setf *function-spec* function-specifier))
       (setf (body function-specifier) (specify-body body))
-      (dolist (param params)
-	    (let ((is-anonymous nil))
-	      (multiple-value-bind (const type modifier const-ptr variable array default)
-	          (specify-type-value< param)
-	        (when (null variable)
-	          (setq is-anonymous t)
-	          (setq variable (gensym "__lccPARAM")))
-            (add-param
-                (make-specifier variable '@|PARAM| const type modifier const-ptr array nil nil is-anonymous)
-              function-specifier))))
+      (loop for param in params
+            for i from 0 to (length params)
+            do (let ((is-anonymous nil))
+	              (multiple-value-bind (const type modifier const-ptr variable array default)
+	                  (specify-type-value< param)
+	                (when (or (null variable) (key-eq '_ variable))
+                      (setq variable (gensym (format nil "_lccParam_~D" i))))
+	                  ; (setq is-anonymous t))
+                    (add-param
+                        (make-specifier variable '@|PARAM| const type modifier const-ptr array nil nil is-anonymous)
+                      function-specifier))))
       (setf *function-spec* tmp-specifier))
     function-specifier))
 
