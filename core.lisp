@@ -2,9 +2,9 @@
 
 (defvar *output* t)
 
-(defvar *unaries* '(|+| |-| |++| |++#| |--| |--#| |~| |not| |cof| |aof|))
+(defvar *unaries* '(|+| |-| |++| |1+| |--| |1-| |~| |not| |cof| |aof|))
 (defvar *operators* '(|+| |-| |*| |/| |%| |==| |!=| |>| |<| |>=| |<=| |^| |<<| |>>| |xor| |and| |or| |bitand| |bitor|))
-(defvar *assignments* '(|=| |+=| |-=| |*=| |/=| |%=| |<<=| |>>=|))
+(defvar *assignments* '(|+=| |-=| |*=| |/=| |%=| |<<=| |>>=|))
 (defvar *modifiers* '(|&| |*| |**|))
 
 (defun reving (list result)
@@ -55,6 +55,8 @@
 (defparameter *target-file* "main.c")
 ;; current function spec during function compiling
 (defparameter *function-spec* nil)
+;; resolve current function or other clauses
+(defparameter *resolve* t)
 ;; storing line num and col num of target's ASTs
 (defparameter *ast-lines* '())
 ;; stores current resolver run number

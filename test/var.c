@@ -33,3 +33,7 @@ const char * const s32[1];
 const char * const s33[] = {"WX", "YZ"};
 const char ** const s34;
 const char ** const s35 = s29 ;
+__auto_type u2 = 1;
+typeof(u2 ) u3[1];
+int u4[] = {2, 3};
+typeof(u4 [0]) u5[2] = {4, 5};

@@ -33,4 +33,10 @@
         (var const char * const s32 [1])
         (var const char * const s33 [] . '{ "WX" "YZ" })
         (var const char ** const s34)
-        (var const char ** const s35 . s29))
+        (var const char ** const s35 . s29)
+
+        ;; type inference
+        (var auto u2 . 1)
+        (var (typeof u2) u3 [1])
+        (var int u4 [] . '{ 2 3 })
+        (var (typeof (nth 0 u4)) u5 [2] . '{ 4 5 }))

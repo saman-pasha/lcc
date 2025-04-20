@@ -75,6 +75,7 @@
    (1 . true)
    (1 . false)
    (1 . nil)
+   (1 . auto)
    ))
 
 (defun lcc-add-keywords (face-name keyword-rules)
@@ -122,6 +123,7 @@
    (1 . cof)
    (1 . aof)
    (1 . sizeof)
+   (1 . typeof)
    (1 . cast)
    (1 . switch)
    (1 . case)
@@ -161,6 +163,7 @@
    (1 . register)
    (1 . auto)
    (1 . defer)
+   (1 . resolve)
    ))
 
 (font-lock-add-keywords

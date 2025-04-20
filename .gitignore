@@ -30,3 +30,14 @@ test/lambda/defer.c.run1.c
 test/lambda/defer.c.run2.c
 test/lambda/defer.c.run3.c
 test/lambda/defer_main
+test/control.c.run1.c
+test/control.c.run2.c
+test/control.c.run3.c
+test/main
+/test/main.dSYM
+test/sha1/sha1.c.run1.c
+test/sha1/sha1.c.run2.c
+test/sha1/sha1.c.run3.c
+test/var.c.run1.c
+test/var.c.run2.c
+test/var.c.run3.c
