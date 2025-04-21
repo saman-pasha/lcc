@@ -1,5 +1,5 @@
 # lcc
-Lisp C Compiler, Lisp-like syntax for writing C code in addition of some forms and pointer managements.
+Lisp C Compiler, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
 ## Instruction
 * Install [SBCL](www.sbcl.org).
 * lcc uses [Libtool](https://www.gnu.org/software/libtool) as default for compiling and linking `C` code. Install it for your platform and put it in the `PATH` environment variable. Compiler and linker could be set in `config.lisp` file.
@@ -7,11 +7,11 @@ Lisp C Compiler, Lisp-like syntax for writing C code in addition of some forms a
 * Write your own lcc code and save it in `.lcc` or `.lisp` extension.
 * Copy `lcc.lisp` file from source folder into your project path.
 * Send your file as an argument to lcc.lisp. `sbcl --script lcc.lisp test.lisp`
-* If you are using EMACS editor, copy mode.lisp file content into .emacs file for syntax highlighting.
+* If you are using EMACS editor, copy `mode.lisp` file content into `.emacs` or `.emacs.d/init.el` file for syntax highlighting.
 ## Identifiers
 ```lisp
-(variable int amount)
-(variable double total)
+(var int amount)
+(var double total)
 ```
 ```c
 int amount;
@@ -19,7 +19,7 @@ double total;
 ```
 ## Constants
 ```lisp
-(variable const int SIDE . 10)
+(var const int SIDE . 10)
 ```
 ```c
 const int SIDE = 10;
@@ -54,30 +54,29 @@ lcc Operator | C Operator
 ------------ | ----------
 `++`|prefix `++`
 `--`|prefix `--`
-`++#`|postfix `++`
-`--#`|postfix `--`
+`1+`|postfix `++`
+`1-`|postfix `--`
 ```lisp
-(target "main.c" 
-  ()
+(source "main.c" ()
   (include <stdio.h>)
 
-  (function main ()
+  (func main ()
     (let ((int a . 5)
           (int b . 5))
           
       ;; Print them and decrementing each time.
       ;; Use postfix mode for a and prefix mode for b.
       
-      (printf "\n%d %d" (--# a) (-- b))
-      (printf "\n%d %d" (--# a) (-- b))
-      (printf "\n%d %d" (--# a) (-- b))
-      (printf "\n%d %d" (--# a) (-- b))
-      (printf "\n%d %d" (--# a) (-- b)))))
+      (printf "\n%d %d" (1- a) (-- b))
+      (printf "\n%d %d" (1- a) (-- b))
+      (printf "\n%d %d" (1- a) (-- b))
+      (printf "\n%d %d" (1- a) (-- b))
+      (printf "\n%d %d" (1- a) (-- b)))))
 ```
 ```c
 #include <stdio.h>
 
-void main()
+int main()
 {
   {
     int a = 5, b = 5;
@@ -106,11 +105,8 @@ lcc Operator | C Operator
 lcc Operator | C Operator
 ------------ | ----------
 `and`|`&&`
-`&&`|`&&`
 `or`|`\|\|`
-`\|\|`|`\|\|`
 `not`|`!`
-`!`|`!`
 ### Bitwise
 lcc Operator | C Operator
 ------------ | ----------
@@ -118,16 +114,13 @@ lcc Operator | C Operator
 `>>`|`>>`
 `~`|`~`
 `bitand`|`&`
-`&`|`&`
+`bitor`|`\|`
 `xor`|`^`
 `^`|`^`
-`bitor`|`\|`
-`\|`|`\|`
 ### Assignment
 lcc Operator | C Operator
 ------------ | ----------
 `set`|`=`
-`=`|`=`
 `+=`|`+=`
 `-=`|`-=`
 `*=`|`*=`
@@ -149,8 +142,9 @@ a = (b == 2) ? 20 : 30;
 lcc Operator | C Operator
 ------------ | ----------
 `sizeof`|`sizeof()`
-`addressof`|`&`
-`contentof`|`*`
+`typeof`|`typeof()`
+`aof`|`&`
+`cof`|`*`
 ## Data Types
 ANSI C provides three types of data types:
 
@@ -186,11 +180,13 @@ lcc Data Type | C Data Type
 `float`|`float`
 `double`|`double`
 `real`|`long double`
+`auto`|`__auto_type`
 ## Variable
 ```lisp
 (let ((double price . 500.4)                         ; atom initialization
       (double price_array [] . '{100.2 230.7 924.8}) ; list initialization
-      (double price_calc . #'(calculate_price))))    ; initialization by output of a function
+      (double price_calc . #'(calculate_price))      ; initialization by output of a function
+      (auto func identity . '(lambda ((int x)) (return x))))) ; lambda initialization
 ```
 ```c
 {
@@ -200,18 +196,18 @@ lcc Data Type | C Data Type
 }
 ```
 ### Free Variable Declaration and Initialization
-A free variable can has some attributes or storage class. each attribute enclosed in braces or parentheses.
+A free variable can has some attributes or storage class. each attribute enclosed in braces or parentheses. free variables can only be defined as global variable for inside function variable declaration `let` clause should be used.
 * {auto}
 * {register}
 * {static}
 * {extern}
 ```lisp
-{auto} (variable int width)
-{register} (variable int height . 5)
-(variable char letter . #\A)
-(variable float age)
-{extern} (variable float area)
-{static} (variable double d)
+{auto} (var int width)
+{register} (var int height . 5)
+(var char letter . #\A)
+(var float age)
+{extern} (var float area)
+{static} (var double d)
 
 ;; actual initialization
 (set width 10)
@@ -230,13 +226,17 @@ width = 10;
 age = 26.5;
 ```
 ### Scoped Variable Declaration and Initialization
-A scoped variable can has some attributes or storage class. each attribute enclosed in braces or parentheses.
+A scoped variable can has some attributes or storage class. each attribute enclosed in braces or parentheses. `let` clause allows to declare a `defer` destructure for every variable as a lambda or a function which receives a pointer of variable type. useful for free struct pointers or any resource which stored inside a struct.
 * {auto}
 * {register}
 * {static}
 ```lisp
 (let ({static} (int width . 3)
-      {register} (int height . 4))
+      {register} (int height . 4)
+      {defer '(lambda ((Employee ** empPtr))
+               (free (cof empPtr))
+               (printf "from defer, emp is freed\n"))}
+      (Employee * emp . #'(alloc (sizeof Employee))))
   (printf "area: %d" (* width height)))
 ```
 ```c
@@ -250,24 +250,26 @@ A scoped variable can has some attributes or storage class. each attribute enclo
 ```lisp
 (set width 60)
 (set age 35)
+(set width 65 age 40) ; multi assignment
 ```
 ```c
 width = 60;
 age = 31;
+width = 65;
+age = 40;
 ```
 ```lisp
-(target "main.c"
-  ()
+(source "main.c" ()
   (include <stdio.h>)
   
-  (function main ()
+  (func main ()
     (let ((int age . 33))
       (printf "I am %d years old.\n" age))))
 ```
 ```c
 #include <stdio.h>
 
-void main()
+int main()
 {
   {
     int age = 33;
@@ -277,10 +279,9 @@ void main()
 ```
 ## Type Casting
 ```lisp
-(target "main.c"
-  ()
+(source "main.c" ()
   (include <stdio.h>)
-  (function main ()
+  (func main ()
     (let ((float a))
       (set a (cast float (/ 15 6)))
       (printf "%f" a))))
@@ -297,14 +298,28 @@ main ()
 }
 ```
 ## Program Structure
-lcc program involves one or many target form.
-targets are translating it's content forms to C code.
+lcc program involves one or many header or source forms calling targets.
+targets are translating its content forms to C code. header targets only compile its content without resolving, but source targets resolves attribue and method access of any struct variable. for example 
+```lisp
+(let ((Employee emp)
+      (Employee * empPtr))
+  ($ emp id)     ; do not needd resolve
+  ($ empPtr id)) ; resolves pointer access
+```
+```c
+{
+  Employee emp;
+  Employee * empPtr;
+  emp.id;
+  empPtr->id;
+}
+```
 each target must has a target c file, and a list of feature arguments.
 ### Features
 All features could be omitted or if available accept `#t` for default behaviour or `#f` for do nothing.
 * <b>:std</b>: writes standard libraries inclusion at top of target file.
 ```lisp
-(target "main.c"
+(source "main.c"
   (:std #t)
   ;; some forms
   )
@@ -316,45 +331,44 @@ All features could be omitted or if available accept `#t` for default behaviour 
 #include <stdlib.h>
 #include <stdbool.h>
 ```
-* <b>:compile</b>: used for compiling target file. Dafault behaviour is `-c target.c`. Could be a list of arguments that will send to compiler which has been set in `lcc-config.lisp`.
-* <b>:link</b>: used for linking and builing target file as library or executable. It has not default behaviour. Could be a list of arguments that will send to linker which has been set in `lcc-config.lisp`.
+* <b>:compile</b>: used for compiling target file. Dafault behaviour is `-c target.c`. Could be a list of arguments that will send to compiler which has been set in `config.lisp`.
+* <b>:link</b>: used for linking and builing target file as library or executable. It has not default behaviour. Could be a list of arguments that will send to linker which has been set in `config.lisp`.
 ```lisp
 ;; MyMath library declaration
-(target "mymath.h"
+(header "mymath.h"
   (:compile #f)
 
   (guard __MYMATH_H__
-    {declare} (function obj1_does ((int) (int)) (returns int))
-    {declare} (function obj2_does ((int) (int)) (returns int))
-    {declare} (function obj3_does ((int) (int)) (returns int))))
+    {decl} (func obj1_does ((int) (int)) (out int))
+    {decl} (func obj2_does ((int) (int)) (out int))
+    {decl} (func obj3_does ((int) (int)) (out int))))
 
 ;; Default compilation
-(target "obj1.c"
+(source "obj1.c"
   (:compile #t)
   (include "mymath.h")
-  (function obj1_does ((int x) (int y)) (returns int)
-	    (return (+ x y))))
+  (func obj1_does ((int x) (int y)) (out int)
+	(return (+ x y))))
 
 ;; Custom compilation
-(target "obj2.c"
+(source "obj2.c"
   (:compile ("-c" "obj2.c" "-o" "objmul.o"))
   (include "mymath.h")
-  (function obj2_does ((int x) (int y)) (returns int)
-	    (return (* x y))))
+  (func obj2_does ((int x) (int y)) (out int)
+	(return (* x y))))
 
 ;; Library creation and linking
-(target "obj3.c"
+(source "obj3.c"
   (:compile #t :link ("-o" "libMyMath.la" "obj1.lo" "objmul.lo" "obj3.lo"))
   (include "mymath.h")
-  (function obj3_does ((int x) (int y)) (returns int)
-	    (return (obj1_does (obj2_does x y) (obj2_does x y)))))
+  (func obj3_does ((int x) (int y)) (out int)
+	(return (obj1_does (obj2_does x y) (obj2_does x y)))))
 
 ;; Executable creation and linking
-(target "main.c"
+(source "main.c"
   (:std #t :compile #t :link ("-o" "CompileTest" "main.lo" "-lMyMath"))
   (include "mymath.h")
-  (function main ((int argc)
-		  (char * argv []))
+  (func main ((int argc) (char * argv []))
 	    (if (!= argc 3)
 		(block
 		 (printf "two digits needed!")
@@ -389,9 +403,9 @@ libtool: link: gcc -g -O -o CompileTest .libs/main.o  /home/saman/Projects/LCC/t
 ```lisp
 ;;; about a lisp file
 ;;;; author, licence and/or documentation about each target
-(variable long height) ; description of a form
-(function sqr ((double a)) 
-  (returns double)
+(var long height) ; description of a form
+(func sqr ((double a)) 
+  (out double)
   ;; some commented code or documentation inside code
   (return (* a a)))
 ```
