@@ -239,13 +239,15 @@ A scoped variable can has some attributes or storage class. each attribute enclo
 * {register}
 * {static}
 ```lisp
-(let ({static} (int width . 3)
-      {register} (int height . 4)
-      {defer '(lambda ((Employee ** empPtr))
-               (free (cof empPtr))
-               (printf "from defer, emp is freed\n"))}
-      (Employee * emp . #'(alloc (sizeof Employee))))
-  (printf "area: %d" (* width height)))
+(source "main.c" ()
+        (func main ()
+              (let ({static} (int width . 3)
+                    {register} (int height . 4)
+                    {defer '(lambda ((Employee ** empPtr))
+                              (free (cof empPtr))
+                              (printf "from defer, emp is freed\n"))}
+                    (Employee * emp . #'(alloc (sizeof Employee))))
+                (printf "area: %d" (* width height)))))
 ```
 ```c
 void __lccLambda_main_178 (Employee ** empPtr) {
@@ -255,8 +257,8 @@ void __lccLambda_main_178 (Employee ** empPtr) {
 int main () {
   { /* lcc#Let177 */
     static int width = 3;
-    static register int height = 4;
-    static register Employee * emp __attribute__((__cleanup__(__lccLambda_main_178 ))) = ((Employee *)malloc (sizeof(Employee)));
+    register int height = 4;
+    Employee * emp __attribute__((__cleanup__(__lccLambda_main_178 ))) = ((Employee *)malloc (sizeof(Employee)));
     printf ("area: %d", (width  *  height  ));
   } /* lcc#Let177 */
 }
