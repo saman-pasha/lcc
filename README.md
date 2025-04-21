@@ -12,17 +12,23 @@ Lisp C Compiler, which compiles Lisp-like syntax to C code and more extra featur
 ```lisp
 (var int amount)
 (var double total)
+(var double * total2)
 ```
 ```c
 int amount;
 double total;
+double * total2;
 ```
 ## Constants
 ```lisp
 (var const int SIDE . 10)
+(var const int * SIDE1 . 11)
+(var const int * const SIDE2 . 12)
 ```
 ```c
 const int SIDE = 10;
+const int * SIDE1 = 11;
+const int * const SIDE2 = 12;
 ```
 ## Operators
 ### Arithmetic
