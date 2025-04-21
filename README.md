@@ -186,7 +186,7 @@ lcc Data Type | C Data Type
 (let ((double price . 500.4)                         ; atom initialization
       (double price_array [] . '{100.2 230.7 924.8}) ; list initialization
       (double price_calc . #'(calculate_price))      ; initialization by output of a function
-      (auto func identity . '(lambda ((int x)) (return x))))) ; lambda initialization
+      (auto func identity . '(lambda ((int x)) (out int) (return x))))) ; lambda initialization
 ```
 ```c
 {
