@@ -49,13 +49,17 @@
                                   (setf count reset)
                                   (setf count (+ count step))))))
 
+;; prints too many details about compiling and resolving
+(defparameter *debug* nil)
+;; prints warning about symbols and function
+(defparameter *warn* nil)
 ;; current target spec during target specifying
 (defparameter *target-spec* nil)
 ;; storing file name during compiling
 (defparameter *target-file* "main.c")
 ;; current function spec during function compiling
 (defparameter *function-spec* nil)
-;; resolve current function or other clauses
+;; resolve current function
 (defparameter *resolve* t)
 ;; storing line num and col num of target's ASTs
 (defparameter *ast-lines* '())
@@ -69,14 +73,14 @@
   (let* ((line-n  (funcall *line-num* 0))
          (col-n   (funcall *col-num* 0))
          (ast-key (ast-key< (+ line-n plus-line) (+ col-n plus-col))))
-    (display "M:" ast-key *ast-run* (gethash ast-key (nth 1 *ast-lines*)) #\NewLine)
+    (when *debug* (display "M:" ast-key *ast-run* (gethash ast-key (nth 1 *ast-lines*)) #\NewLine))
     (gethash ast-key (nth 1 *ast-lines*))))
 
 (defun current-resolved< (&optional (plus-line 0) (plus-col 0))
   (let* ((line-n  (funcall *line-num* 0))
          (col-n   (funcall *col-num* 0))
          (ast-key (ast-key< (+ line-n plus-line) (+ col-n plus-col))))
-    (display "R:" ast-key *ast-run* (gethash ast-key (nth *ast-run* *ast-lines*)) #\NewLine)
+    (when *debug* (display "R:" ast-key *ast-run* (gethash ast-key (nth *ast-run* *ast-lines*)) #\NewLine))
     (getf (gethash ast-key (nth *ast-run* *ast-lines*)) 'res)))
 
 (defmacro set-ast-line (out)
@@ -88,7 +92,7 @@
             (,col-n  (funcall *col-num* 0))
             (,item   (gethash (ast-key< ,line-n ,col-n) (nth 0 *ast-lines*)))
             (,result ,out))
-       (display "set-run" *ast-run* ">" (ast-key< ,line-n ,col-n) "")
+       (when *debug* (display "set-run" *ast-run* ">" (ast-key< ,line-n ,col-n) ""))
        (setf (getf ,item 'res) ,result)
        (unless (getf ,item 'bt)
          (setf (getf ,item 'bt)  (cdr (backtrace))))
@@ -102,7 +106,7 @@
     `(let* ((,line-n (funcall *line-num* 0))
             (,col-n  (funcall *col-num* 0))
             (,item   (gethash (ast-key< ,line-n ,col-n) (nth *ast-run* *ast-lines*))))
-       (display "set-resolved" *ast-run* ">" (ast-key< ,line-n ,col-n) "")
+       (when *debug* (display "set-resolved" *ast-run* ">" (ast-key< ,line-n ,col-n) ""))
        (setf (getf ,item 'res) ,outstr)
        (unless (getf ,item 'bt)
          (setf (getf ,item 'bt)  (cdr (backtrace))))
@@ -168,7 +172,7 @@
                     (funcall *col-num* 0 :reset 1)
                     (funcall *col-num* (1- (- (length result) index)))))
           (funcall *col-num* (length result)))
-      (display result #\NewLine)
+      (when *debug* (display result #\NewLine))
       ;; (display line-n (+ col-n space-count) result)
       ;; (values line-n col-n)
       result)))

@@ -653,7 +653,6 @@
          (switch-var (make-specifier expre '|@SWITCH| nil nil nil nil nil nil '()))
          (cases '()))
     (dolist (ch-form (nthcdr 2 def))
-      (display "SCS" ch-form #\Newline)
       (cond ((key-eq (car ch-form) '|case|)
              (setq expre (specify-expr (cadr ch-form)))
              (let ((case-var (make-specifier expre '|@CASE| nil nil nil nil nil nil '())))
@@ -665,7 +664,6 @@
                (push case-var cases)))
 	        (t (error (format nil "only case or default form ~A" ch-form)))))
     (setf (default switch-var) (reverse cases))
-    (display "SCS" (default switch-var) (reverse cases) #\Newline)
     switch-var))
 
 (defun specify-while (def)

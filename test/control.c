@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 int main () {
-  { /* lcc#Let177 */
+  { /* lcc#Let188 */
     int x = 1;
     int y = 5;
     bool next = true ;
@@ -56,5 +56,5 @@ int main () {
             printf ("unknown digit\n");
       }
     } 
-  } /* lcc#Let177 */
+  } /* lcc#Let188 */
 }

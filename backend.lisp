@@ -116,7 +116,6 @@
     (cond ((and (key-eq typeof '|@SYMBOL|) (string= (symbol-name value) "this"))
            (set-ast-line (output "~A " '|this|)))
           ((key-eq typeof '|@SYMBOL|)
-	       (unless (gethash value globals nil) (warning! "lcc\: [warning] undefined variable ~A~%" value))
            (let ((ast (current-ast<)))
              (if (null ast)
 	             (set-ast-line (output "~A " value))
@@ -429,7 +428,6 @@
   (set-ast-line (output ") {~%"))
   (dolist (ch-form (default spec))
     (let ((constr (construct ch-form)))
-      (display "CCC" constr ch-form #\Newline)
       (cond ((key-eq constr '|@CASE|)
              (output "~&~A" (indent lvl))
              (set-ast-line (output "case "))
@@ -527,7 +525,6 @@
 	    ('|inline|  (setq is-inline  t))
 	    ('|extern|  (setq is-extern  t))
         ('|resolve| (setq do-resolve (cdr attr)))))
-    (display "DDDDDDD" do-resolve)
     (when (and (> *ast-run* 1) (key-eq '|false| do-resolve)) (setq *resolve* nil))
     ;; compile function
     (let* ((is-method  (if (key-eq (construct spec) '|@METHOD|) t nil))
@@ -582,7 +579,6 @@
 
 (defun compile-preprocessor (spec lvl globals)
   (with-slots ((directive typeof) (macro default)) spec
-    (display "PPP" directive macro #\Newline)
     (setf (char (symbol-name (name directive)) 0) #\#)
     (compile-form directive globals)
     (when macro (compile-form macro globals))

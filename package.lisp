@@ -3,5 +3,7 @@
 (defpackage :lcc
   (:use :cl)
   (:export
-   :compile-ast
-   :compile-lcc-file))
+    :*debug*
+    :*warn*
+    :compile-ast
+    :compile-lcc-file))
