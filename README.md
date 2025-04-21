@@ -238,6 +238,7 @@ A scoped variable can has some attributes or storage class. each attribute enclo
 * {auto}
 * {register}
 * {static}
+* {defer '(lambda ((int * intPtr)) (printf "int gone out of scope\n"))} variable destructor
 ```lisp
 (source "main.c" ()
         (func main ()
@@ -538,11 +539,11 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
   (scanf "%d" (addressof a))
   
   (switch a
-    (case 1 (printf "You chose One")   (break))
-    (case 2 (printf "You chose Two")   (break))
-    (case 3 (printf "You chose Three") (break))
-    (case 4 (printf "You chose Four")  (break))
-    (case 5 (printf "You chose Five")  (break))
+    (case 1 (printf "You chose One")   break)
+    (case 2 (printf "You chose Two")   break)
+    (case 3 (printf "You chose Three") break)
+    (case 4 (printf "You chose Four")  break)
+    (case 5 (printf "You chose Five")  break)
     (default (printf "Invalid Choice."))))
 ```
 ```c
@@ -580,7 +581,7 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
       (int times . 5))
   (while (<= n times)
     (printf "lcc while loops: %d\n" n)
-    (++# n)))
+    (1+ n)))
 ```
 ```c
 {
@@ -596,9 +597,10 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
 ```lisp
 (let ((int n . 1)
       (int times . 5))
-  (do (<= n times)
+  (do
     (printf "lcc do loops: %d\n" n)
-    (++# n)))
+    (1+ n)
+    (<= n times))) ; last form of do clause checks the condition
 ```
 ```c
 {
@@ -613,46 +615,15 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
 ### for
 ```lisp
 (for ((int n . 1)
-      (int times . 5))
-  (<= n times)
-  (++# n)
+      (int times . 5)) ; initialize
+  (<= n times)         ; test
+  ((1+ n))             ; step
   (printf "lcc for loops: %d\n" n))
 ```
 ```c
 for (int n = 1, int times = 5; (n <= times);) {
   n++;
   printf("lcc for loops: %d\n", n);
-}
-```
-### for-each
-Static array:
-```lisp
-(let ((int ages [] . '{20 22 24 26}))
-  (for-each (int i) ages (/ (sizeof ages) (sizeof int))
-    (printf "each age: %d\n" i)))
-```
-```c
-{
-  int ages[] = {20, 22, 24, 26};
-  for (int G4321 = 0; G4321 < sizeof(ages) / sizeof(int); G4321++) {
-    int i = ages[G4321];
-    printf("each age: %d\n", i);
-  }
-}
-```
-Dynamic array:
-```lisp
-(function main ((int argc) (char ** argv))
-  (for-each (char * arg) argv argc
-    (printf "%s\n" arg)))
-```
-```c
-int main (int argc, char ** argv) 
-{
-  for (int G4321 = 0; G4321 < argc; G4321++) {
-    char * arg = argv[G4321];
-    printf("%s\n", arg);
-  }
 }
 ```
 ## Function
@@ -663,15 +634,16 @@ lcc has some points on functions:
     * {static}
     * {inline}
     * {extern}
+    * {resolve #f) means do not resolve this function
 * Each declared function defined a function pointer typedef named FunctionName_t.
 ```lisp
-(target "main.c"
+(source "main.c"
   (:std #t)
-  
+
   ;; function declaration
-  {declare} (function addition ((int * a) (int * b)) (returns int))
+  {decl} (func addition ((int * a) (int * b)) (out int))
   
-  (function main ()
+  (func main ()
     ;; local variable definition
     (let ((int answer)
           (int num1 . 10)
@@ -683,9 +655,11 @@ lcc has some points on functions:
     (return 0))
   
   ;; function returning the addition of two numbers
-  (function addition ((int * a) (int * b))
-    (returns int)
-    (return (+ (contentof a) (contentof b)))))
+  (func addition ((int * a) (int * b))
+    (out int)
+    (return (+ (cof a) (cof b))))
+
+  (var func ((int * _) (int * _)) (out int) . addition)) ; function pointer
 ```
 ```c
 #include <stdio.h>
