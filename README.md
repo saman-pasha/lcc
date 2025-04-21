@@ -183,16 +183,24 @@ lcc Data Type | C Data Type
 `auto`|`__auto_type`
 ## Variable
 ```lisp
-(let ((double price . 500.4)                         ; atom initialization
-      (double price_array [] . '{100.2 230.7 924.8}) ; list initialization
-      (double price_calc . #'(calculate_price))      ; initialization by output of a function
-      (auto func identity . '(lambda ((int x)) (out int) (return x))))) ; lambda initialization
+(source "main.c" ()
+        (func main ()
+              (let ((double price . 500.4)                         ; atom initialization
+                    (double price_array [] . '{100.2 230.7 924.8}) ; list initialization
+                    (double price_calc . #'(calculate_price))      ; initialization by output of a function
+                    (auto identity . '(lambda ((int x)) (out int) (return x))))))) ; lambda initialization
 ```
 ```c
-{
-  double price = 500.4;
-  double price_array [] = {100.2, 230.7, 924.8};
-  double price_calc = calculate_price();
+int __lccLambda_main_178 (int x) {
+  return x ;
+}
+int main () {
+  { /* lcc#Let177 */
+    double price = 500.4;
+    double price_array[] = {100.2, 230.7, 924.8};
+    double price_calc = calculate_price ();
+    __auto_type identity = __lccLambda_main_178 ;
+  } /* lcc#Let177 */
 }
 ```
 ### Free Variable Declaration and Initialization
@@ -240,10 +248,17 @@ A scoped variable can has some attributes or storage class. each attribute enclo
   (printf "area: %d" (* width height)))
 ```
 ```c
-{
-  static int width = 3;
-  register int height = 4;
-  printf("area: %d", width * height);
+void __lccLambda_main_178 (Employee ** empPtr) {
+  free ((*empPtr ));
+  printf ("from defer, emp is freed\n");
+}
+int main () {
+  { /* lcc#Let177 */
+    static int width = 3;
+    static register int height = 4;
+    static register Employee * emp __attribute__((__cleanup__(__lccLambda_main_178 ))) = ((Employee *)malloc (sizeof(Employee)));
+    printf ("area: %d", (width  *  height  ));
+  } /* lcc#Let177 */
 }
 ```
 ### Assignment
@@ -333,8 +348,7 @@ All features could be omitted or if available accept `#t` for default behaviour 
 ```
 * <b>:compile</b>: used for compiling target file. Dafault behaviour is `-c target.c`. Could be a list of arguments that will send to compiler which has been set in `config.lisp`.
 * <b>:link</b>: used for linking and builing target file as library or executable. It has not default behaviour. Could be a list of arguments that will send to linker which has been set in `config.lisp`.
-```lisp
-;; MyMath library declaration
+```lisp;; MyMath library declaration
 (header "mymath.h"
   (:compile #f)
 
@@ -348,55 +362,79 @@ All features could be omitted or if available accept `#t` for default behaviour 
   (:compile #t)
   (include "mymath.h")
   (func obj1_does ((int x) (int y)) (out int)
-	(return (+ x y))))
+	    (return (+ x y))))
 
 ;; Custom compilation
 (source "obj2.c"
-  (:compile ("-c" "obj2.c" "-o" "objmul.o"))
+  (:compile "-c obj2.c -o objmul.o")
   (include "mymath.h")
   (func obj2_does ((int x) (int y)) (out int)
-	(return (* x y))))
+	    (return (* x y))))
 
 ;; Library creation and linking
 (source "obj3.c"
-  (:compile #t :link ("-o" "libMyMath.la" "obj1.lo" "objmul.lo" "obj3.lo"))
+  (:compile #t :link "-o libMyMath.la -L{$CWD} obj1.lo objmul.lo obj3.lo")
   (include "mymath.h")
   (func obj3_does ((int x) (int y)) (out int)
-	(return (obj1_does (obj2_does x y) (obj2_does x y)))))
+	    (return (obj1_does (obj2_does x y) (obj2_does x y)))))
 
 ;; Executable creation and linking
 (source "main.c"
-  (:std #t :compile #t :link ("-o" "CompileTest" "main.lo" "-lMyMath"))
+  (:std #t :compile #t :link "-o CompileTest -L{$CWD} main.lo -lMyMath")
   (include "mymath.h")
   (func main ((int argc) (char * argv []))
 	    (if (!= argc 3)
-		(block
-		 (printf "two digits needed!")
-		 (return EXIT_FAILURE)))
+		    (block
+		        (printf "two digits needed!")
+		      (return EXIT_FAILURE)))
 	    (let ((int x . #'(atoi (nth 1 argv)))
-		  (int y . #'(atoi (nth 2 argv))))
+		      (int y . #'(atoi (nth 2 argv))))
 	      (printf "MyMath lib outputs: %d\n" (obj3_does x y)))
 	    (return EXIT_SUCCESS)))
 ```
 ```
-lcc: compiling target mymath.h
+lcc % sbcl --script lcc.lisp test/test.lisp
+software type: "Darwin"
+lcc: specifying target mymath.h
+lcc: resolving target mymath.h
+lcc: specifying target obj1.c
+lcc: resolving target obj1.c.run1.c
+lcc: resolving target obj1.c.run2.c
+lcc: resolving target obj1.c.run3.c
 lcc: compiling target obj1.c
-libtool: compile:  gcc -g -O -c obj1.c  -fPIC -DPIC -o .libs/obj1.o
-libtool: compile:  gcc -g -O -c obj1.c -o obj1.o >/dev/null 2>&1
+glibtool: compile:  clang -g -O -c obj1.c  -fno-common -DPIC -o .libs/obj1.o
+glibtool: compile:  clang -g -O -c obj1.c -o obj1.o >/dev/null 2>&1
+lcc: specifying target obj2.c
+lcc: resolving target obj2.c.run1.c
+lcc: resolving target obj2.c.run2.c
+lcc: resolving target obj2.c.run3.c
 lcc: compiling target obj2.c
-libtool: compile:  gcc -g -O -c obj2.c  -fPIC -DPIC -o .libs/objmul.o
-libtool: compile:  gcc -g -O -c obj2.c -o objmul.o >/dev/null 2>&1
+glibtool: compile:  clang -g -O -c obj2.c  -fno-common -DPIC -o .libs/objmul.o
+glibtool: compile:  clang -g -O -c obj2.c -o objmul.o >/dev/null 2>&1
+lcc: specifying target obj3.c
+lcc: resolving target obj3.c.run1.c
+lcc: resolving target obj3.c.run2.c
+lcc: resolving target obj3.c.run3.c
 lcc: compiling target obj3.c
-libtool: compile:  gcc -g -O -c obj3.c  -fPIC -DPIC -o .libs/obj3.o
-libtool: compile:  gcc -g -O -c obj3.c -o obj3.o >/dev/null 2>&1
-libtool: link: rm -fr  .libs/libMyMath.a .libs/libMyMath.la
-libtool: link: ar cr .libs/libMyMath.a .libs/obj1.o .libs/objmul.o .libs/obj3.o 
-libtool: link: ranlib .libs/libMyMath.a
-libtool: link: ( cd ".libs" && rm -f "libMyMath.la" && ln -s "../libMyMath.la" "libMyMath.la" )
+glibtool: compile:  clang -g -O -c obj3.c  -fno-common -DPIC -o .libs/obj3.o
+glibtool: compile:  clang -g -O -c obj3.c -o obj3.o >/dev/null 2>&1
+glibtool: link: rm -fr  .libs/libMyMath.a .libs/libMyMath.la
+glibtool: link: ar cr .libs/libMyMath.a .libs/obj1.o .libs/objmul.o .libs/obj3.o 
+glibtool: link: ranlib .libs/libMyMath.a
+glibtool: link: ( cd ".libs" && rm -f "libMyMath.la" && ln -s "../libMyMath.la" "libMyMath.la" )
+lcc: specifying target main.c
+lcc: resolving target main.c.run1.c
+lcc: resolving target main.c.run2.c
+lcc: resolving target main.c.run3.c
 lcc: compiling target main.c
-libtool: compile:  gcc -g -O -c main.c  -fPIC -DPIC -o .libs/main.o
-libtool: compile:  gcc -g -O -c main.c -o main.o >/dev/null 2>&1
-libtool: link: gcc -g -O -o CompileTest .libs/main.o  /home/saman/Projects/LCC/trunk/.libs/libMyMath.a
+glibtool: compile:  clang -g -O -c main.c  -fno-common -DPIC -o .libs/main.o
+glibtool: compile:  clang -g -O -c main.c -o main.o >/dev/null 2>&1
+glibtool: link: clang -g -O -v -o CompileTest .libs/main.o  -L/Users/a1/Projects/GitHub/lcc/test/ /Users/a1/Projects/GitHub/lcc/test/.libs/libMyMath.a 
+Apple clang version 17.0.0 (clang-1700.0.13.3)
+Target: x86_64-apple-darwin24.4.0
+Thread model: posix
+InstalledDir: /Library/Developer/CommandLineTools/usr/bin
+ "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -no_deduplicate -dynamic -arch x86_64 -platform_version macos 15.0.0 15.4 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -O1 -mllvm -enable-linkonceodr-outlining -o CompileTest -L/Users/a1/Projects/GitHub/lcc/test/ -L/usr/local/lib .libs/main.o /Users/a1/Projects/GitHub/lcc/test/.libs/libMyMath.a -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a
 ```
 ### Sections
 * Documentations: starts with semi-colon(s) ";"
