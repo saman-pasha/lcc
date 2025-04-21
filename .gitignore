@@ -41,3 +41,4 @@ test/sha1/sha1.c.run3.c
 test/var.c.run1.c
 test/var.c.run2.c
 test/var.c.run3.c
+.DS_Store
