@@ -350,7 +350,8 @@ All features could be omitted or if available accept `#t` for default behaviour 
 ```
 * <b>:compile</b>: used for compiling target file. Dafault behaviour is `-c target.c`. Could be a list of arguments that will send to compiler which has been set in `config.lisp`.
 * <b>:link</b>: used for linking and builing target file as library or executable. It has not default behaviour. Could be a list of arguments that will send to linker which has been set in `config.lisp`.
-```lisp;; MyMath library declaration
+```lisp
+;; MyMath library declaration
 (header "mymath.h"
   (:compile #f)
 
