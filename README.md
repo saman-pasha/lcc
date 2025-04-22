@@ -1,13 +1,20 @@
 # lcc
-Lisp C Compiler, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
+Lisp C Compiler aka. 'LCC' programming language, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
 ## Instruction
 * Install [SBCL](www.sbcl.org).
-* lcc uses [Libtool](https://www.gnu.org/software/libtool) as default for compiling and linking `C` code. Install it for your platform and put it in the `PATH` environment variable. Compiler and linker could be set in `config.lisp` file.
+* `clang` required for compiling and linking. `brew` can be used to install clang. [Clang](https://clang.llvm.org).
+* lcc uses [Libtool](https://www.gnu.org/software/libtool) as default for perfoming better compiling and linking `C` code. Install it for your platform and put it in the `PATH` environment variable. Compiler and linker could be set in `config.lisp` file. Current used version: `(GNU libtool) 2.5.4`
 * Download and copy lcc folder to `~/common-lisp` for enabling [ASDF](https://common-lisp.net/project/asdf) access to lcc package.
 * Write your own lcc code and save it in `.lcc` or `.lisp` extension.
 * Copy `lcc.lisp` file from source folder into your project path.
 * Send your file as an argument to lcc.lisp. `sbcl --script lcc.lisp test.lisp`
 * If you are using EMACS editor, copy `mode.lisp` file content into `.emacs` or `.emacs.d/init.el` file for syntax highlighting.
+## *New Features
+* lcc now uses `IR` (Intermediate Representation) to handle more clauses and features.
+* `lambda` clause allows developer to write in-place function for sending as other function argument or `defer` destructure.
+* `defer` attribute. only available for variables defined by `let` expression. Allows developers to set a function how to destruct a variable or a pointer.
+* auto deferral is a way let expressions will defined to automatically release dynamic memory allocated by `alloc` clause.
+* `method` clause 
 ## Identifiers
 ```lisp
 (var int amount)
