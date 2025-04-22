@@ -173,6 +173,7 @@ ANSI C provides three types of data types:
 lcc supports declaration and definition of all ANCI C data types.
 lcc Data Type | C Data Type
 ------------- | -----------
+`nil`|`NULL`
 `void`|`void`
 `bool`|`bool`
 `char`|`char`
