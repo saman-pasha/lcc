@@ -1,14 +1,26 @@
 # lcc
-Lisp C Compiler, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
+Lisp C Compiler aka. 'LCC' programming language, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
 ## Instruction
 * Install [SBCL](www.sbcl.org).
-* lcc uses [Libtool](https://www.gnu.org/software/libtool) as default for compiling and linking `C` code. Install it for your platform and put it in the `PATH` environment variable. Compiler and linker could be set in `config.lisp` file.
+* `clang` required for compiling and linking. `brew` can be used to install clang. [Clang](https://clang.llvm.org).
+* lcc uses [Libtool](https://www.gnu.org/software/libtool) as default for perfoming better compiling and linking `C` code. Install it for your platform and put it in the `PATH` environment variable. Compiler and linker could be set in `config.lisp` file. Current used version: `(GNU libtool) 2.5.4`
 * Download and copy lcc folder to `~/common-lisp` for enabling [ASDF](https://common-lisp.net/project/asdf) access to lcc package.
 * Write your own lcc code and save it in `.lcc` or `.lisp` extension.
 * Copy `lcc.lisp` file from source folder into your project path.
 * Send your file as an argument to lcc.lisp. `sbcl --script lcc.lisp test.lisp`
 * If you are using EMACS editor, copy `mode.lisp` file content into `.emacs` or `.emacs.d/init.el` file for syntax highlighting.
+## * New Features
+* lcc now uses `IR` (Intermediate Representation) to handle more clauses and features.
+* `lambda` clause allows developer to write in-place function for sending as other function argument or `defer` destructure. refer to [lambda](test/lambda) test folder `lambda.lisp` sample.
+* `defer` attribute. only available for variables defined by `let` expression. Allows developers to set a function how to destruct a variable or a pointer. refer to [defer](test/lambda) test folder `defer.lisp` sample.
+* auto deferral is a way let expressions will defined to automatically release dynamic memory allocated by `alloc` clause. refer to [alloc](test/lambda) test folder `defer.lisp` sample.
+* `method` clause will receive current instance or pointer as `this` parameter. Methods are defined outside a structure by access method operator `->` placed between struct name and method name like `Employee->Sign`.  refer to [method](test/method) test folder `method.lisp` sample.
+* `auto` variable type simplifies lambda and function pointer variables. also `typeof` clause is added to use other variables type for define another variable.
+* `func` type allows developer to define a function pointer which wasn't available before.
+* refer to [basic](test) `basic.lisp` file for some struct definition samples.
+* refer to [control](test) `control.lisp` file for some control structures samples.
 ## Identifiers
+For basic variable definition refer to [var](test) `var.lisp` file.
 ```lisp
 (var int amount)
 (var double total)
