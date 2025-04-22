@@ -19,7 +19,8 @@
                                (free ($ (cof empPtr) Name))
                                (free emp)
                                (printf "from defer, emp is freed\n")))}
-                    (Employee * emp . #'(alloc (sizeof Employee))))
+                     (Employee * emp . #'(alloc (sizeof Employee)))
+                     (Employee * empOther . #'(alloc (sizeof Employee))))
 
                 (set ($ emp Id)   100
                      ($ emp Name) (calloc 8 (sizeof char)))
