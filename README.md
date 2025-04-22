@@ -793,7 +793,7 @@ int main (int argc, char *argv[])
 }
 ```
 ## Dynamic Memory Allocation
-C dynamic memory allocation functions `malloc()`, `calloc()`, `realloc()`, `free()` are available. Other keyword `alloc` that works in `let` initialization part which automatically is checking pointer and freeing allocated memory at the end of let scope.
+C dynamic memory allocation functions `malloc()`, `calloc()`, `realloc()`, `free()` are available. Other keyword `alloc` that works in `let` initialization part which automatically defers and freeing allocated memory when the variable gone out of let scope. Auto deferral could be replaced by {defer (aFuncPonter | lambda)} which takes a pointer to pointer variable.
 ```lisp
 (let ((char * mem_alloc . #'(malloc (* 15 (sizeof char))))) ; memory allocated dynamically
   (if (== mem_alloc nil) (printf "Couldn't able to allocate requested memory\n"))
@@ -810,15 +810,25 @@ C dynamic memory allocation functions `malloc()`, `calloc()`, `realloc()`, `free
 ```
 Allocation with `alloc` and equivalent code in C:
 ```lisp
-(let ((char * safe_alloc . #'(alloc (* 15 (sizeof char)))))
-  (printf "Memory allocated safely\n"))
+  (func main ()
+        (let ({defer '(lambda ((int * xPtr)) (printf "x was %d\n" (cof xPtr)))}
+              (int x . 6)
+              (int * ax . #'(alloc 5 (sizeof int))))
+          (printf "x is %d\n" x))))
 ```
 ```c
-{
-    char * safe_alloc = ((char *)malloc((15 * sizeof(char))));
-    if (safe_alloc == NULL) printf("dynamic memory allocation failed! safe_alloc\n");
-    printf("Memory allocated safely\n");
-    free(safe_alloc);
+void __lccLambda_main_178 (int * xPtr) {
+  printf ("x was %d\n", (*xPtr ));
+}
+void __lccLambda_main_179 (int ** ax) {
+  free ((*ax ));
+}
+int main () {
+  { /* lcc#Let177 */
+    int x __attribute__((__cleanup__(__lccLambda_main_178))) = 6;
+    int * ax __attribute__((__cleanup__(__lccLambda_main_179))) = ((int *)calloc(5, sizeof(int)));
+    printf ("x is %d\n", x);
+  } /* lcc#Let177 */
 }
 ```
 ```lisp
@@ -828,13 +838,16 @@ Allocation with `alloc` and equivalent code in C:
   (printf "Matrix allocated\n"))
 ```
 ```c
-{
+void __lccLambda_main_178 (int *** matrix) {
+  free ((*matrix ));
+}
+int main () {
+  { /* lcc#Let177 */
     int n_rows = 4;
     int n_columns = 5;
-    int ** matrix = ((int **)malloc(((n_rows * n_columns) * sizeof(int))));
-    if (matrix == NULL) printf("dynamic memory allocation failed! matrix\n");
-    printf("Matrix allocated\n");
-    free(matrix);
+    int ** matrix __attribute__((__cleanup__(__lccLambda_main_178))) = ((int **)malloc(((n_rows * n_columns) * sizeof(int))));
+    printf ("Matrix allocated\n");
+  } /* lcc#Let177 */
 }
 ```
 Allocation by `alloc` and equivalent `calloc`:
@@ -843,11 +856,14 @@ Allocation by `alloc` and equivalent `calloc`:
   (printf "Memory allocated safely\n"))
 ```
 ```c
-{    
-  char * safe_alloc = calloc(15, sizeof(char)); 
-  if (safe_alloc == NULL) printf("dynamic memory allocation failed! safe_alloc\n");
-  printf("Memory allocated safely\n");
-  free(safe_alloc);
+void __lccLambda_main_178 (char ** safe_alloc) {
+  free ((*safe_alloc ));
+}
+int main () {
+  { /* lcc#Let177 */
+    char * safe_alloc __attribute__((__cleanup__(__lccLambda_main_178 ))) = ((char *)calloc (15, sizeof(char)));
+    printf ("Memory allocated safely\n");
+  } /* lcc#Let177 */
 }
 ```
 ## Structure
