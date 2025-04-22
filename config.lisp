@@ -1,5 +1,26 @@
 (in-package :lcc)
 
+;; prints too many details about compiling and resolving
+(defparameter *debug* nil)
+;; prints warning about symbols and function
+(defparameter *warn* nil)
+;; prints verbosity of compilation and link
+(defparameter *verbose* "")
+
+(format t "software type: ~S~%" (software-type))
+;;;; os specific toolset
 (defparameter *configs*
-  (list 'compiler '("libtool" "--mode=compile" "gcc" "-g" "-O")
-	'linker   '("libtool" "--mode=link" "gcc" "-g" "-O")))
+  (let ((os (software-type)))
+    (cond 
+      ((string= os "Linux") (list
+                             'dumper   '("-Xclang" "-ast-dump")
+                             'compiler `("libtool" "--tag=CC" "--mode=compile" "clang" "-g" "-O" ,*verbose*)
+                             'linker   '("libtool" "--tag=CC" "--mode=link" "clang" "-g" "-O" "-v")))
+      ((string= os "Darwin") (list
+                              'dumper   '("-Xclang" "-ast-dump")
+                              'compiler `("glibtool" "--tag=CC" "--mode=compile" "clang" "-g" "-O" ,*verbose*)
+                              'linker   '("glibtool" "--tag=CC" "--mode=link" "clang" "-g" "-O" "-v")))
+      (t (list
+          'dumper   '("-Xclang" "-ast-dump")
+          'compiler `("libtool" "--tag=CC" "--mode=compile" "clang" "-g" "-O" ,*verbose*)
+          'linker   '("libtool" "--tag=CC" "--mode=link" "clang" "-g" "-O" "-v"))))))

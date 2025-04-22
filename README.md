@@ -1,28 +1,46 @@
 # lcc
-Lisp C Compiler, Lisp-like syntax for writing C code in addition of some forms and pointer managements.
+Lisp C Compiler aka. 'LCC' programming language, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
 ## Instruction
 * Install [SBCL](www.sbcl.org).
-* lcc as default uses [Libtool](https://www.gnu.org/software/libtool) for compiling and linking `C` code. If you like it just install it for your platform and put it in the `PATH` environment variable. Compiler and linker could be set in `lcc-config.lisp` file.
+* `clang` required for compiling and linking. `brew` can be used to install clang. [Clang](https://clang.llvm.org).
+* lcc uses [Libtool](https://www.gnu.org/software/libtool) as default for perfoming better compiling and linking `C` code. Install it for your platform and put it in the `PATH` environment variable. Compiler and linker could be set in `config.lisp` file. Current used version: `(GNU libtool) 2.5.4`
 * Download and copy lcc folder to `~/common-lisp` for enabling [ASDF](https://common-lisp.net/project/asdf) access to lcc package.
 * Write your own lcc code and save it in `.lcc` or `.lisp` extension.
 * Copy `lcc.lisp` file from source folder into your project path.
 * Send your file as an argument to lcc.lisp. `sbcl --script lcc.lisp test.lisp`
-* If you are using EMACS editor, copy mode.lisp file content into .emacs file for syntax highlighting.
+* If you are using EMACS editor, copy `mode.lisp` file content into `.emacs` or `.emacs.d/init.el` file for syntax highlighting.
+## * New Features
+* lcc now uses `IR` (Intermediate Representation) to handle more clauses and features.
+* `lambda` clause allows developer to write in-place function for sending as other function argument or `defer` destructure. refer to [lambda](test/lambda) test folder `lambda.lisp` sample.
+* `defer` attribute. only available for variables defined by `let` expression. Allows developers to set a function how to destruct a variable or a pointer. refer to [defer](test/lambda) test folder `defer.lisp` sample.
+* auto deferral is a way let expressions will defined to automatically release dynamic memory allocated by `alloc` clause. refer to [alloc](test/lambda) test folder `defer.lisp` sample.
+* `method` clause will receive current instance or pointer as `this` parameter. Methods are defined outside a structure by access method operator `->` placed between struct name and method name like `Employee->Sign`.  refer to [method](test/method) test folder `method.lisp` sample.
+* `auto` variable type simplifies lambda and function pointer variables. also `typeof` clause is added to use other variables type for define another variable.
+* `func` type allows developer to define a function pointer which wasn't available before.
+* refer to [basic](test) `basic.lisp` file for some struct definition samples.
+* refer to [control](test) `control.lisp` file for some control structures samples.
 ## Identifiers
+For basic variable definition refer to [var](test) `var.lisp` file.
 ```lisp
-(variable int amount)
-(variable double total)
+(var int amount)
+(var double total)
+(var double * total2)
 ```
 ```c
 int amount;
 double total;
+double * total2;
 ```
 ## Constants
 ```lisp
-(variable const int SIDE . 10)
+(var const int SIDE . 10)
+(var const int * SIDE1 . 11)
+(var const int * const SIDE2 . 12)
 ```
 ```c
 const int SIDE = 10;
+const int * SIDE1 = 11;
+const int * const SIDE2 = 12;
 ```
 ## Operators
 ### Arithmetic
@@ -54,30 +72,29 @@ lcc Operator | C Operator
 ------------ | ----------
 `++`|prefix `++`
 `--`|prefix `--`
-`++#`|postfix `++`
-`--#`|postfix `--`
+`1+`|postfix `++`
+`1-`|postfix `--`
 ```lisp
-(target "main.c" 
-  ()
+(source "main.c" ()
   (include <stdio.h>)
 
-  (function main ()
+  (func main ()
     (let ((int a . 5)
           (int b . 5))
           
       ;; Print them and decrementing each time.
       ;; Use postfix mode for a and prefix mode for b.
       
-      (printf "\n%d %d" (--# a) (-- b))
-      (printf "\n%d %d" (--# a) (-- b))
-      (printf "\n%d %d" (--# a) (-- b))
-      (printf "\n%d %d" (--# a) (-- b))
-      (printf "\n%d %d" (--# a) (-- b)))))
+      (printf "\n%d %d" (1- a) (-- b))
+      (printf "\n%d %d" (1- a) (-- b))
+      (printf "\n%d %d" (1- a) (-- b))
+      (printf "\n%d %d" (1- a) (-- b))
+      (printf "\n%d %d" (1- a) (-- b)))))
 ```
 ```c
 #include <stdio.h>
 
-void main()
+int main()
 {
   {
     int a = 5, b = 5;
@@ -106,11 +123,8 @@ lcc Operator | C Operator
 lcc Operator | C Operator
 ------------ | ----------
 `and`|`&&`
-`&&`|`&&`
 `or`|`\|\|`
-`\|\|`|`\|\|`
 `not`|`!`
-`!`|`!`
 ### Bitwise
 lcc Operator | C Operator
 ------------ | ----------
@@ -118,16 +132,13 @@ lcc Operator | C Operator
 `>>`|`>>`
 `~`|`~`
 `bitand`|`&`
-`&`|`&`
+`bitor`|`\|`
 `xor`|`^`
 `^`|`^`
-`bitor`|`\|`
-`\|`|`\|`
 ### Assignment
 lcc Operator | C Operator
 ------------ | ----------
 `set`|`=`
-`=`|`=`
 `+=`|`+=`
 `-=`|`-=`
 `*=`|`*=`
@@ -149,8 +160,9 @@ a = (b == 2) ? 20 : 30;
 lcc Operator | C Operator
 ------------ | ----------
 `sizeof`|`sizeof()`
-`addressof`|`&`
-`contentof`|`*`
+`typeof`|`typeof()`
+`aof`|`&`
+`cof`|`*`
 ## Data Types
 ANSI C provides three types of data types:
 
@@ -161,6 +173,7 @@ ANSI C provides three types of data types:
 lcc supports declaration and definition of all ANCI C data types.
 lcc Data Type | C Data Type
 ------------- | -----------
+`nil`|`NULL`
 `void`|`void`
 `bool`|`bool`
 `char`|`char`
@@ -186,32 +199,42 @@ lcc Data Type | C Data Type
 `float`|`float`
 `double`|`double`
 `real`|`long double`
+`auto`|`__auto_type`
 ## Variable
 ```lisp
-(let ((double price . 500.4)                         ; atom initialization
-      (double price_array [] . '{100.2 230.7 924.8}) ; list initialization
-      (double price_calc . #'(calculate_price))))    ; initialization by output of a function
+(source "main.c" ()
+        (func main ()
+              (let ((double price . 500.4)                         ; atom initialization
+                    (double price_array [] . '{100.2 230.7 924.8}) ; list initialization
+                    (double price_calc . #'(calculate_price))      ; initialization by output of a function
+                    (auto identity . '(lambda ((int x)) (out int) (return x))))))) ; lambda initialization
 ```
 ```c
-{
-  double price = 500.4;
-  double price_array [] = {100.2, 230.7, 924.8};
-  double price_calc = calculate_price();
+int __lccLambda_main_178 (int x) {
+  return x ;
+}
+int main () {
+  { /* lcc#Let177 */
+    double price = 500.4;
+    double price_array[] = {100.2, 230.7, 924.8};
+    double price_calc = calculate_price ();
+    __auto_type identity = __lccLambda_main_178 ;
+  } /* lcc#Let177 */
 }
 ```
 ### Free Variable Declaration and Initialization
-A free variable can has some attributes or storage class. each attribute enclosed in braces or parentheses.
+A free variable can has some attributes or storage class. each attribute enclosed in braces or parentheses. free variables can only be defined as global variable for inside function variable declaration `let` clause should be used.
 * {auto}
 * {register}
 * {static}
 * {extern}
 ```lisp
-{auto} (variable int width)
-{register} (variable int height . 5)
-(variable char letter . #\A)
-(variable float age)
-{extern} (variable float area)
-{static} (variable double d)
+{auto} (var int width)
+{register} (var int height . 5)
+(var char letter . #\A)
+(var float age)
+{extern} (var float area)
+{static} (var double d)
 
 ;; actual initialization
 (set width 10)
@@ -230,44 +253,60 @@ width = 10;
 age = 26.5;
 ```
 ### Scoped Variable Declaration and Initialization
-A scoped variable can has some attributes or storage class. each attribute enclosed in braces or parentheses.
+A scoped variable can has some attributes or storage class. each attribute enclosed in braces or parentheses. `let` clause allows to declare a `defer` destructure for every variable as a lambda or a function which receives a pointer of variable type. useful for free struct pointers or any resource which stored inside a struct.
 * {auto}
 * {register}
 * {static}
+* {defer '(lambda ((int * intPtr)) (printf "int gone out of scope\n"))} variable destructor
 ```lisp
-(let ({static} (int width . 3)
-      {register} (int height . 4))
-  (printf "area: %d" (* width height)))
+(source "main.c" ()
+        (func main ()
+              (let ({static} (int width . 3)
+                    {register} (int height . 4)
+                    {defer '(lambda ((Employee ** empPtr))
+                              (free (cof empPtr))
+                              (printf "from defer, emp is freed\n"))}
+                    (Employee * emp . #'(alloc (sizeof Employee))))
+                (printf "area: %d" (* width height)))))
 ```
 ```c
-{
-  static int width = 3;
-  register int height = 4;
-  printf("area: %d", width * height);
+void __lccLambda_main_178 (Employee ** empPtr) {
+  free ((*empPtr ));
+  printf ("from defer, emp is freed\n");
+}
+int main () {
+  { /* lcc#Let177 */
+    static int width = 3;
+    register int height = 4;
+    Employee * emp __attribute__((__cleanup__(__lccLambda_main_178 ))) = ((Employee *)malloc (sizeof(Employee)));
+    printf ("area: %d", (width  *  height  ));
+  } /* lcc#Let177 */
 }
 ```
 ### Assignment
 ```lisp
 (set width 60)
 (set age 35)
+(set width 65 age 40) ; multi assignment
 ```
 ```c
 width = 60;
 age = 31;
+width = 65;
+age = 40;
 ```
 ```lisp
-(target "main.c"
-  ()
+(source "main.c" ()
   (include <stdio.h>)
   
-  (function main ()
+  (func main ()
     (let ((int age . 33))
       (printf "I am %d years old.\n" age))))
 ```
 ```c
 #include <stdio.h>
 
-void main()
+int main()
 {
   {
     int age = 33;
@@ -277,10 +316,9 @@ void main()
 ```
 ## Type Casting
 ```lisp
-(target "main.c"
-  ()
+(source "main.c" ()
   (include <stdio.h>)
-  (function main ()
+  (func main ()
     (let ((float a))
       (set a (cast float (/ 15 6)))
       (printf "%f" a))))
@@ -297,14 +335,28 @@ main ()
 }
 ```
 ## Program Structure
-lcc program involves one or many target form.
-targets are translating it's content forms to C code.
+lcc program involves one or many header or source forms calling targets.
+targets are translating its content forms to C code. header targets only compile its content without resolving, but source targets resolves attribue and method access of any struct variable. for example 
+```lisp
+(let ((Employee emp)
+      (Employee * empPtr))
+  ($ emp id)     ; do not needd resolve
+  ($ empPtr id)) ; resolves pointer access
+```
+```c
+{
+  Employee emp;
+  Employee * empPtr;
+  emp.id;
+  empPtr->id;
+}
+```
 each target must has a target c file, and a list of feature arguments.
 ### Features
 All features could be omitted or if available accept `#t` for default behaviour or `#f` for do nothing.
 * <b>:std</b>: writes standard libraries inclusion at top of target file.
 ```lisp
-(target "main.c"
+(source "main.c"
   (:std #t)
   ;; some forms
   )
@@ -316,82 +368,105 @@ All features could be omitted or if available accept `#t` for default behaviour 
 #include <stdlib.h>
 #include <stdbool.h>
 ```
-* <b>:compile</b>: used for compiling target file. Dafault behaviour is `-c target.c`. Could be a list of arguments that will send to compiler which has been set in `lcc-config.lisp`.
-* <b>:link</b>: used for linking and builing target file as library or executable. It has not dfault behaviour. Could be a list of arguments that will send to linker which has been set in `lcc-config.lisp`.
+* <b>:compile</b>: used for compiling target file. Dafault behaviour is `-c target.c`. Could be a list of arguments that will send to compiler which has been set in `config.lisp`.
+* <b>:link</b>: used for linking and builing target file as library or executable. It has not default behaviour. Could be a list of arguments that will send to linker which has been set in `config.lisp`.
 ```lisp
 ;; MyMath library declaration
-(target "mymath.h"
+(header "mymath.h"
   (:compile #f)
 
   (guard __MYMATH_H__
-    {declare} (function obj1_does ((int) (int)) (returns int))
-    {declare} (function obj2_does ((int) (int)) (returns int))
-    {declare} (function obj3_does ((int) (int)) (returns int))))
+    {decl} (func obj1_does ((int) (int)) (out int))
+    {decl} (func obj2_does ((int) (int)) (out int))
+    {decl} (func obj3_does ((int) (int)) (out int))))
 
 ;; Default compilation
-(target "obj1.c"
+(source "obj1.c"
   (:compile #t)
   (include "mymath.h")
-  (function obj1_does ((int x) (int y)) (returns int)
+  (func obj1_does ((int x) (int y)) (out int)
 	    (return (+ x y))))
 
 ;; Custom compilation
-(target "obj2.c"
-  (:compile ("-c" "obj2.c" "-o" "objmul.o"))
+(source "obj2.c"
+  (:compile "-c obj2.c -o objmul.o")
   (include "mymath.h")
-  (function obj2_does ((int x) (int y)) (returns int)
+  (func obj2_does ((int x) (int y)) (out int)
 	    (return (* x y))))
 
 ;; Library creation and linking
-(target "obj3.c"
-  (:compile #t :link ("-o" "libMyMath.la" "obj1.lo" "objmul.lo" "obj3.lo"))
+(source "obj3.c"
+  (:compile #t :link "-o libMyMath.la -L{$CWD} obj1.lo objmul.lo obj3.lo")
   (include "mymath.h")
-  (function obj3_does ((int x) (int y)) (returns int)
+  (func obj3_does ((int x) (int y)) (out int)
 	    (return (obj1_does (obj2_does x y) (obj2_does x y)))))
 
 ;; Executable creation and linking
-(target "main.c"
-  (:std #t :compile #t :link ("-o" "CompileTest" "main.lo" "-lMyMath"))
+(source "main.c"
+  (:std #t :compile #t :link "-o CompileTest -L{$CWD} main.lo -lMyMath")
   (include "mymath.h")
-  (function main ((int argc)
-		  (char * argv []))
+  (func main ((int argc) (char * argv []))
 	    (if (!= argc 3)
-		(block
-		 (printf "two digits needed!")
-		 (return EXIT_FAILURE)))
+		    (block
+		        (printf "two digits needed!")
+		      (return EXIT_FAILURE)))
 	    (let ((int x . #'(atoi (nth 1 argv)))
-		  (int y . #'(atoi (nth 2 argv))))
+		      (int y . #'(atoi (nth 2 argv))))
 	      (printf "MyMath lib outputs: %d\n" (obj3_does x y)))
 	    (return EXIT_SUCCESS)))
 ```
 ```
-lcc: compiling target mymath.h
+lcc % sbcl --script lcc.lisp test/test.lisp
+software type: "Darwin"
+lcc: specifying target mymath.h
+lcc: resolving target mymath.h
+lcc: specifying target obj1.c
+lcc: resolving target obj1.c.run1.c
+lcc: resolving target obj1.c.run2.c
+lcc: resolving target obj1.c.run3.c
 lcc: compiling target obj1.c
-libtool: compile:  gcc -g -O -c obj1.c  -fPIC -DPIC -o .libs/obj1.o
-libtool: compile:  gcc -g -O -c obj1.c -o obj1.o >/dev/null 2>&1
+glibtool: compile:  clang -g -O -c obj1.c  -fno-common -DPIC -o .libs/obj1.o
+glibtool: compile:  clang -g -O -c obj1.c -o obj1.o >/dev/null 2>&1
+lcc: specifying target obj2.c
+lcc: resolving target obj2.c.run1.c
+lcc: resolving target obj2.c.run2.c
+lcc: resolving target obj2.c.run3.c
 lcc: compiling target obj2.c
-libtool: compile:  gcc -g -O -c obj2.c  -fPIC -DPIC -o .libs/objmul.o
-libtool: compile:  gcc -g -O -c obj2.c -o objmul.o >/dev/null 2>&1
+glibtool: compile:  clang -g -O -c obj2.c  -fno-common -DPIC -o .libs/objmul.o
+glibtool: compile:  clang -g -O -c obj2.c -o objmul.o >/dev/null 2>&1
+lcc: specifying target obj3.c
+lcc: resolving target obj3.c.run1.c
+lcc: resolving target obj3.c.run2.c
+lcc: resolving target obj3.c.run3.c
 lcc: compiling target obj3.c
-libtool: compile:  gcc -g -O -c obj3.c  -fPIC -DPIC -o .libs/obj3.o
-libtool: compile:  gcc -g -O -c obj3.c -o obj3.o >/dev/null 2>&1
-libtool: link: rm -fr  .libs/libMyMath.a .libs/libMyMath.la
-libtool: link: ar cr .libs/libMyMath.a .libs/obj1.o .libs/objmul.o .libs/obj3.o 
-libtool: link: ranlib .libs/libMyMath.a
-libtool: link: ( cd ".libs" && rm -f "libMyMath.la" && ln -s "../libMyMath.la" "libMyMath.la" )
+glibtool: compile:  clang -g -O -c obj3.c  -fno-common -DPIC -o .libs/obj3.o
+glibtool: compile:  clang -g -O -c obj3.c -o obj3.o >/dev/null 2>&1
+glibtool: link: rm -fr  .libs/libMyMath.a .libs/libMyMath.la
+glibtool: link: ar cr .libs/libMyMath.a .libs/obj1.o .libs/objmul.o .libs/obj3.o 
+glibtool: link: ranlib .libs/libMyMath.a
+glibtool: link: ( cd ".libs" && rm -f "libMyMath.la" && ln -s "../libMyMath.la" "libMyMath.la" )
+lcc: specifying target main.c
+lcc: resolving target main.c.run1.c
+lcc: resolving target main.c.run2.c
+lcc: resolving target main.c.run3.c
 lcc: compiling target main.c
-libtool: compile:  gcc -g -O -c main.c  -fPIC -DPIC -o .libs/main.o
-libtool: compile:  gcc -g -O -c main.c -o main.o >/dev/null 2>&1
-libtool: link: gcc -g -O -o CompileTest .libs/main.o  /home/saman/Projects/LCC/trunk/.libs/libMyMath.a
+glibtool: compile:  clang -g -O -c main.c  -fno-common -DPIC -o .libs/main.o
+glibtool: compile:  clang -g -O -c main.c -o main.o >/dev/null 2>&1
+glibtool: link: clang -g -O -v -o CompileTest .libs/main.o  -L/Users/a1/Projects/GitHub/lcc/test/ /Users/a1/Projects/GitHub/lcc/test/.libs/libMyMath.a 
+Apple clang version 17.0.0 (clang-1700.0.13.3)
+Target: x86_64-apple-darwin24.4.0
+Thread model: posix
+InstalledDir: /Library/Developer/CommandLineTools/usr/bin
+ "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -no_deduplicate -dynamic -arch x86_64 -platform_version macos 15.0.0 15.4 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -O1 -mllvm -enable-linkonceodr-outlining -o CompileTest -L/Users/a1/Projects/GitHub/lcc/test/ -L/usr/local/lib .libs/main.o /Users/a1/Projects/GitHub/lcc/test/.libs/libMyMath.a -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a
 ```
 ### Sections
 * Documentations: starts with semi-colon(s) ";"
 ```lisp
 ;;; about a lisp file
 ;;;; author, licence and/or documentation about each target
-(variable long height) ; description of a form
-(function sqr ((double a)) 
-  (returns double)
+(var long height) ; description of a form
+(func sqr ((double a)) 
+  (out double)
   ;; some commented code or documentation inside code
   (return (* a a)))
 ```
@@ -483,11 +558,11 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
   (scanf "%d" (addressof a))
   
   (switch a
-    (case 1 (printf "You chose One")   (break))
-    (case 2 (printf "You chose Two")   (break))
-    (case 3 (printf "You chose Three") (break))
-    (case 4 (printf "You chose Four")  (break))
-    (case 5 (printf "You chose Five")  (break))
+    (case 1 (printf "You chose One")   break)
+    (case 2 (printf "You chose Two")   break)
+    (case 3 (printf "You chose Three") break)
+    (case 4 (printf "You chose Four")  break)
+    (case 5 (printf "You chose Five")  break)
     (default (printf "Invalid Choice."))))
 ```
 ```c
@@ -525,7 +600,7 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
       (int times . 5))
   (while (<= n times)
     (printf "lcc while loops: %d\n" n)
-    (++# n)))
+    (1+ n)))
 ```
 ```c
 {
@@ -541,9 +616,10 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
 ```lisp
 (let ((int n . 1)
       (int times . 5))
-  (do (<= n times)
+  (do
     (printf "lcc do loops: %d\n" n)
-    (++# n)))
+    (1+ n)
+    (<= n times))) ; last form of do clause checks the condition
 ```
 ```c
 {
@@ -558,46 +634,15 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
 ### for
 ```lisp
 (for ((int n . 1)
-      (int times . 5))
-  (<= n times)
-  (++# n)
+      (int times . 5)) ; initialize
+  (<= n times)         ; test
+  ((1+ n))             ; step
   (printf "lcc for loops: %d\n" n))
 ```
 ```c
 for (int n = 1, int times = 5; (n <= times);) {
   n++;
   printf("lcc for loops: %d\n", n);
-}
-```
-### for-each
-Static array:
-```lisp
-(let ((int ages [] . '{20 22 24 26}))
-  (for-each (int i) ages (/ (sizeof ages) (sizeof int))
-    (printf "each age: %d\n" i)))
-```
-```c
-{
-  int ages[] = {20, 22, 24, 26};
-  for (int G4321 = 0; G4321 < sizeof(ages) / sizeof(int); G4321++) {
-    int i = ages[G4321];
-    printf("each age: %d\n", i);
-  }
-}
-```
-Dynamic array:
-```lisp
-(function main ((int argc) (char ** argv))
-  (for-each (char * arg) argv argc
-    (printf "%s\n" arg)))
-```
-```c
-int main (int argc, char ** argv) 
-{
-  for (int G4321 = 0; G4321 < argc; G4321++) {
-    char * arg = argv[G4321];
-    printf("%s\n", arg);
-  }
 }
 ```
 ## Function
@@ -608,29 +653,35 @@ lcc has some points on functions:
     * {static}
     * {inline}
     * {extern}
+    * {resolve #f) means do not resolve this function
 * Each declared function defined a function pointer typedef named FunctionName_t.
 ```lisp
-(target "main.c"
-  (:std #t)
-  
+(source "main.c"
+  (:std #t :compile #t :link #t)
+
   ;; function declaration
-  {declare} (function addition ((int * a) (int * b)) (returns int))
+  {decl} (func addition ((int * a) (int * b)) (out int))
   
-  (function main ()
-    ;; local variable definition
-    (let ((int answer)
-          (int num1 . 10)
-          (int num2 . 5))
-      
-      ;; calling a function to get addition value
-      (set answer (addition (addressof num1) (addressof num2)))
-      (printf "The addition of two numbers is: %d\n" answer))
-    (return 0))
+  (func main ()
+        ;; local variable definition
+        (let ((int answer)
+              (int num1 . 10)
+              (int num2 . 5)
+              (func aFuncPtr ((int * _) (int * _)) (out int) . addition)) ; function pointer
+          
+          ;; calling a function to get addition value
+          (set answer (addition (aof num1) (aof num2)))
+          (printf "The addition of two numbers is: %d\n" answer)
+
+          (set answer (aFuncPtr (aof num1) (aof num2)))
+          (printf "The addition of two numbers by function pointer is: %d\n" answer))
+
+        (return 0))
   
   ;; function returning the addition of two numbers
-  (function addition ((int * a) (int * b))
-    (returns int)
-    (return (+ (contentof a) (contentof b)))))
+  (func addition ((int * a) (int * b))
+        (out int)
+        (return (+ (cof a) (cof b)))))
 ```
 ```c
 #include <stdio.h>
@@ -638,60 +689,45 @@ lcc has some points on functions:
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-/* function declaration */
-int addition(int *num1, int *num2);
-
-int main()
-{
-  {
-    /* local variable definition */    
+int addition (int * a, int * b);
+int main () {
+  { /* lcc#Let177 */
     int answer;
     int num1 = 10;
     int num2 = 5;
-    
-    /* calling a function to get addition value */    
-    answer = addition(&num1, &num2);
-    printf("The addition of two numbers is: %d\n", answer);
-  }
+    int (*aFuncPtr) (int *  , int *  ) = addition;
+    answer  = addition ((&num1 ), (&num2 ));
+    printf ("The addition of two numbers is: %d\n", answer );
+    answer  = aFuncPtr ((&num1 ), (&num2 ));
+    printf ("The addition of two numbers by function pointer is: %d\n", answer );
+  } /* lcc#Let177 */
   return 0;
 }
-
-/* function returning the addition of two numbers */
-int addition(int *a,int *b)
-{
-    return *a + *b;
+int addition (int * a, int * b) {
+  return ((*a ) +  (*b ) );
 }
-```
-```lisp
-{declare} (function function_pointer ((int) (int)))
-```
-```c
-void function_pointer (int, int);
-typedef void (*function_pointer_t) (int, int);
 ```
 ## Array
 ### Define
 ```lisp
-(variable double amount [5])
+(var double amount [5])
+```
+### Initialize
+```lisp
+(var int digits [] . '{ 1 2 3 4 5 })
+(var char hw [][5] . '{ "Hello" "World" })
 ```
 ```c
-double amount[5];
-```
-### Initialize 
-```lisp
-(variable int ages [5] . '{22 23 24 25 26})
-```
-```c
-int ages[5] = {22 23 24 25 26};
+int digits[] = {1, 2, 3, 4, 5};
+char hw[][5] = { "Hello" "World" };
 ```
 ```lisp
-(variable int myArray [5])
+(var int myArray [5])
 
 ;; Initializing elements of array seperately
 (for ((int n . 0))
   (< n (/ (sizeof myArray) (sizeof int)))
-  (++# n)
+  ((1+ n))
   (set (nth n myArray) n))
 ```
 ```c
@@ -705,9 +741,9 @@ for(int n = 0; n < sizeof(myArray) / sizeof(int); n++)
 ```
 ## String
 ```lisp
-(variable char name [6] . '{#\C #\l #\o #\u #\d #\Null})
-(variable char name []  . "Cloud")
-(variable char * name   . "Cloud")
+(var char name [6] . '{#\C #\l #\o #\u #\d #\Null})
+(var char name []  . "Cloud")
+(var char * name   . "Cloud")
 ```
 ```c
 char name[6] = {'C', 'l', 'o', 'u', 'd', '\0'};
@@ -726,29 +762,28 @@ char * name  = "Cloud";
 `#\Backspace`
 ## Pointer
 ```lisp
-(variable int * width)
-(variable int * letter)
+(var int * width)
+(var int * letter)
 ```
 ```c
 int  *width;
 char *letter;
 ```
 ```lisp
-(target "main.c"
-  ()
+(source "main.c" ()
   (include <stdio.h>)
   
-  (function main ((int argc) (char * argv []))
+  (func main ((int argc) (char * argv []))
     (let ((int n . 20)
-          (int * pntr))        ; actual and pointer variable declaration
-      (set pntr (addressof n)) ; store address of n in pointer variable
-      (printf "Address of n variable: %x\n" (addressof n))
+          (int * pntr))  ; actual and pointer variable declaration
+      (set pntr (aof n)) ; store address of n in pointer variable
+      (printf "Address of n variable: %x\n" (aof n))
       
       ;; address stored in pointer variable
       (printf "Address stored in pntr variable: %x\n" pntr)
 
       ;; access the value using the pointer
-      (printf "Value of *pntr variable: %d\n" (contentof pntr)))
+      (printf "Value of *pntr variable: %d\n" (cof pntr)))
     (return 0))
 ```
 ```c
@@ -771,7 +806,7 @@ int main (int argc, char *argv[])
 }
 ```
 ## Dynamic Memory Allocation
-C dynamic memory allocation functions `malloc()`, `calloc()`, `realloc()`, `free()` are available. Other keyword `alloc` that works in `let` initialization part which automatically is checking pointer and freeing allocated memory at the end of let scope.
+C dynamic memory allocation functions `malloc()`, `calloc()`, `realloc()`, `free()` are available. Other keyword `alloc` that works in `let` initialization part which automatically defers and freeing allocated memory when the variable gone out of let scope. Auto deferral could be replaced by {defer (aFuncPonter | lambda)} which takes a pointer to pointer variable.
 ```lisp
 (let ((char * mem_alloc . #'(malloc (* 15 (sizeof char))))) ; memory allocated dynamically
   (if (== mem_alloc nil) (printf "Couldn't able to allocate requested memory\n"))
@@ -788,15 +823,25 @@ C dynamic memory allocation functions `malloc()`, `calloc()`, `realloc()`, `free
 ```
 Allocation with `alloc` and equivalent code in C:
 ```lisp
-(let ((char * safe_alloc . #'(alloc (* 15 (sizeof char)))))
-  (printf "Memory allocated safely\n"))
+  (func main ()
+        (let ({defer '(lambda ((int * xPtr)) (printf "x was %d\n" (cof xPtr)))}
+              (int x . 6)
+              (int * ax . #'(alloc 5 (sizeof int))))
+          (printf "x is %d\n" x))))
 ```
 ```c
-{
-    char * safe_alloc = ((char *)malloc((15 * sizeof(char))));
-    if (safe_alloc == NULL) printf("dynamic memory allocation failed! safe_alloc\n");
-    printf("Memory allocated safely\n");
-    free(safe_alloc);
+void __lccLambda_main_178 (int * xPtr) {
+  printf("x was %d\n", (*xPtr));
+}
+void __lccLambda_main_179 (int ** ax) {
+  free((*ax));
+}
+int main () {
+  {
+    int x __attribute__((__cleanup__(__lccLambda_main_178))) = 6;
+    int * ax __attribute__((__cleanup__(__lccLambda_main_179))) = ((int *)calloc(5, sizeof(int)));
+    printf("x is %d\n", x);
+  }
 }
 ```
 ```lisp
@@ -806,13 +851,16 @@ Allocation with `alloc` and equivalent code in C:
   (printf "Matrix allocated\n"))
 ```
 ```c
-{
+void __lccLambda_main_178 (int *** matrix) {
+  free((*matrix));
+}
+int main () {
+  {
     int n_rows = 4;
     int n_columns = 5;
-    int ** matrix = ((int **)malloc(((n_rows * n_columns) * sizeof(int))));
-    if (matrix == NULL) printf("dynamic memory allocation failed! matrix\n");
-    printf("Matrix allocated\n");
-    free(matrix);
+    int ** matrix __attribute__((__cleanup__(__lccLambda_main_178))) = ((int **)malloc(((n_rows * n_columns) * sizeof(int))));
+    printf ("Matrix allocated\n");
+  }
 }
 ```
 Allocation by `alloc` and equivalent `calloc`:
@@ -821,53 +869,67 @@ Allocation by `alloc` and equivalent `calloc`:
   (printf "Memory allocated safely\n"))
 ```
 ```c
-{    
-  char * safe_alloc = calloc(15, sizeof(char)); 
-  if (safe_alloc == NULL) printf("dynamic memory allocation failed! safe_alloc\n");
-  printf("Memory allocated safely\n");
-  free(safe_alloc);
+void __lccLambda_main_178 (char ** safe_alloc) {
+  free((*safe_alloc));
+}
+int main () {
+  {
+    char * safe_alloc __attribute__((__cleanup__(__lccLambda_main_178))) = ((char *)calloc(15, sizeof(char)));
+    printf ("Memory allocated safely\n");
+  }
 }
 ```
 ## Structure
-`declares` form is for declaring one or more variable(s) at the end of nested struct declaration just for anonymous structures.
-Use `$` form for struct's member access and `->` form for member access of pointer of struct.
+`declare` clause is for declaring one or more variable(s) at the end of nested struct declaration just for anonymous structures.
+Use `$` form for struct's member access and `->` form for member access of pointer of struct. Both `$` and `->` have other utility if a function defined in source targets and doesn't have `{resolve #f}` attribute. `$` operator resolves attribute access for both instance and pointer variables, also `->` operator won't work for pointer access instead it resolves to method access for structures. `inline` functions or methods in header files also don't have resolving process. Methods can be defined with `method` clause and naming convention `Struct->Method`. All methods have `this` parametr automatically and will receive calling instance or pointer.
 ```lisp
-(struct Course
-  (member char WebSite [50])
-  (member char Subject [50])
-  (member int  Price))
-  
-(variable Course c1 . '{"domain.com" "Compilers" 100})
-(variable Course * pc1 . #'(addressof c1))
-  
-(function print_course ()
-  (printf "Course: %s in %s for %d$" 
-    ($ c1 Subject) 
-    ($ c1 WebSite)
-    ($ c1 Price))
-  (printf "Course: %s in %s for %d$" 
-    (-> pc1 Subject) 
-    (-> pc1 WebSite)
-    (-> pc1 Price)))
+(header "course.h" ()
+        (struct Course
+          (member char WebSite [50])
+          (member char Subject [50])
+          (member int  Price))
+
+        {decl} (method Course->Print ()))
+
+(source "course.c" (:std #t :compile #t :link #t)
+        (include "course.h")
+        
+        (var Course c1 . '{"domain.com" "Compilers" 100})
+        (var Course * pc1 . #'(aof c1))
+        
+        (method Course->Print ()
+                (printf "Course: %s in %s for %d$\n" 
+                  ($ this Subject) 
+                  ($ this WebSite)
+                  ($ this Price)))
+        
+        (func main ()
+              (-> c1 Print) 
+              (-> pc1 Print)))
 ```
 ```c
+// course.h
 typedef struct Course {
-  char WebSite [50];
-  char Subject [50];
+  char WebSite[50];
+  char Subject[50];
   int Price;
 } Course;
+void Course_Print (Course * this);
 
+// course.c
 Course c1 = {"domain.com", "Compilers", 100};
-Course * pc1 = &c1;
-
-void print_course () {
-  printf("Course: %s in %s for %d$", c1.Subject, c1.WebSite, c1.Price);
-  printf("Course: %s in %s for %d$", pc1->Subject, pc1->WebSite, pc1->Price);
+Course * pc1 = (&c1 );
+void Course_Print (Course * this) {
+  printf ("Course: %s in %s for %d$\n", (this ->Subject ), (this ->WebSite ), (this ->Price ));
+}
+int main () {
+  Course_Print(&c1);
+  Course_Print(pc1 );
 }
 ```
 ## Union
-`declares` form is for declaring one or more variable(s) at the end of nested union declaration just for anonymous unions.
-Use `$` form for union's member access and `->` form for member access of pointer of union.
+`declare` form is for declaring one or more variable(s) at the end of nested union declaration just for anonymous unions.
+Use `$` form for union's member access and `->` form for member access of pointer of union. Union supports resolver like Struct.
 ```lisp
 (struct USHAContext
   (member int whichSha)                 ; which SHA is being used
@@ -877,7 +939,7 @@ Use `$` form for union's member access and `->` form for member access of pointe
     (member SHA256Context sha256Context)
     (member SHA384Context sha384Context) 
     (member SHA512Context sha512Context)
-    (declares ctx)))
+    (declare ctx)))
 ```
 ```c
 typedef struct USHAContext {
@@ -934,6 +996,13 @@ typedef struct Student {
 ```c
 typedef int * intptr_t;
 ```
+## lcc.lisp Command Line Arguments
+`sbcl --script /path/to/lcc.lisp /path/to/some-lcc-file.lisp {args}`
+Available arguments:
+* --debug : will prints too many details about specifying, resolving and compiling.
+* --verbose : adds `-v` option to `clang` and `libtool` commands to print more details about compiling and linking. usefull when linking and libraries.
+
+`{$CWD}` placeholder is available inside `:compile` and `:link` command for every targets. 
 ## C++ Compiler
 C++ compiler could be used instead of C compiler then some features availables:
 * `&` modifier in function argument for pass by reference.
