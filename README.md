@@ -644,28 +644,31 @@ lcc has some points on functions:
 * Each declared function defined a function pointer typedef named FunctionName_t.
 ```lisp
 (source "main.c"
-  (:std #t)
+  (:std #t :compile #t :link #t)
 
   ;; function declaration
   {decl} (func addition ((int * a) (int * b)) (out int))
   
   (func main ()
-    ;; local variable definition
-    (let ((int answer)
-          (int num1 . 10)
-          (int num2 . 5))
-      
-      ;; calling a function to get addition value
-      (set answer (addition (addressof num1) (addressof num2)))
-      (printf "The addition of two numbers is: %d\n" answer))
-    (return 0))
+        ;; local variable definition
+        (let ((int answer)
+              (int num1 . 10)
+              (int num2 . 5)
+              (func aFuncPtr ((int * _) (int * _)) (out int) . addition)) ; function pointer
+          
+          ;; calling a function to get addition value
+          (set answer (addition (aof num1) (aof num2)))
+          (printf "The addition of two numbers is: %d\n" answer)
+
+          (set answer (aFuncPtr (aof num1) (aof num2)))
+          (printf "The addition of two numbers by function pointer is: %d\n" answer))
+
+        (return 0))
   
   ;; function returning the addition of two numbers
   (func addition ((int * a) (int * b))
-    (out int)
-    (return (+ (cof a) (cof b))))
-
-  (var func ((int * _) (int * _)) (out int) . addition)) ; function pointer
+        (out int)
+        (return (+ (cof a) (cof b)))))
 ```
 ```c
 #include <stdio.h>
@@ -673,60 +676,45 @@ lcc has some points on functions:
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-/* function declaration */
-int addition(int *num1, int *num2);
-
-int main()
-{
-  {
-    /* local variable definition */    
+int addition (int * a, int * b);
+int main () {
+  { /* lcc#Let177 */
     int answer;
     int num1 = 10;
     int num2 = 5;
-    
-    /* calling a function to get addition value */    
-    answer = addition(&num1, &num2);
-    printf("The addition of two numbers is: %d\n", answer);
-  }
+    int (*aFuncPtr) (int *  , int *  ) = addition;
+    answer  = addition ((&num1 ), (&num2 ));
+    printf ("The addition of two numbers is: %d\n", answer );
+    answer  = aFuncPtr ((&num1 ), (&num2 ));
+    printf ("The addition of two numbers by function pointer is: %d\n", answer );
+  } /* lcc#Let177 */
   return 0;
 }
-
-/* function returning the addition of two numbers */
-int addition(int *a,int *b)
-{
-    return *a + *b;
+int addition (int * a, int * b) {
+  return ((*a ) +  (*b ) );
 }
-```
-```lisp
-{declare} (function function_pointer ((int) (int)))
-```
-```c
-void function_pointer (int, int);
-typedef void (*function_pointer_t) (int, int);
 ```
 ## Array
 ### Define
 ```lisp
-(variable double amount [5])
+(var double amount [5])
+```
+### Initialize
+```lisp
+(var int digits [] . '{ 1 2 3 4 5 })
+(var char hw [][5] . '{ "Hello" "World" })
 ```
 ```c
-double amount[5];
-```
-### Initialize 
-```lisp
-(variable int ages [5] . '{22 23 24 25 26})
-```
-```c
-int ages[5] = {22 23 24 25 26};
+int digits[] = {1, 2, 3, 4, 5};
+char hw[][5] = { "Hello" "World" };
 ```
 ```lisp
-(variable int myArray [5])
+(var int myArray [5])
 
 ;; Initializing elements of array seperately
 (for ((int n . 0))
   (< n (/ (sizeof myArray) (sizeof int)))
-  (++# n)
+  ((1+ n))
   (set (nth n myArray) n))
 ```
 ```c
@@ -740,9 +728,9 @@ for(int n = 0; n < sizeof(myArray) / sizeof(int); n++)
 ```
 ## String
 ```lisp
-(variable char name [6] . '{#\C #\l #\o #\u #\d #\Null})
-(variable char name []  . "Cloud")
-(variable char * name   . "Cloud")
+(var char name [6] . '{#\C #\l #\o #\u #\d #\Null})
+(var char name []  . "Cloud")
+(var char * name   . "Cloud")
 ```
 ```c
 char name[6] = {'C', 'l', 'o', 'u', 'd', '\0'};
@@ -761,29 +749,28 @@ char * name  = "Cloud";
 `#\Backspace`
 ## Pointer
 ```lisp
-(variable int * width)
-(variable int * letter)
+(var int * width)
+(var int * letter)
 ```
 ```c
 int  *width;
 char *letter;
 ```
 ```lisp
-(target "main.c"
-  ()
+(source "main.c" ()
   (include <stdio.h>)
   
-  (function main ((int argc) (char * argv []))
+  (func main ((int argc) (char * argv []))
     (let ((int n . 20)
-          (int * pntr))        ; actual and pointer variable declaration
-      (set pntr (addressof n)) ; store address of n in pointer variable
-      (printf "Address of n variable: %x\n" (addressof n))
+          (int * pntr))  ; actual and pointer variable declaration
+      (set pntr (aof n)) ; store address of n in pointer variable
+      (printf "Address of n variable: %x\n" (aof n))
       
       ;; address stored in pointer variable
       (printf "Address stored in pntr variable: %x\n" pntr)
 
       ;; access the value using the pointer
-      (printf "Value of *pntr variable: %d\n" (contentof pntr)))
+      (printf "Value of *pntr variable: %d\n" (cof pntr)))
     (return 0))
 ```
 ```c
