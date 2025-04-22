@@ -20,8 +20,9 @@
               when (< i 0)
               do (progn
                    (format t "~A~%" arg)
-                   (case arg
-                     ("--debug" (setf lcc:*debug* t))
-                     ("--warn"  (setf lcc:*warn*  t)))))
+                   (cond
+                     ((string= arg "--debug")    (setf lcc:*debug*   t))
+                     ((string= arg "--warn")     (setf lcc:*warn*    t))
+                     ((string= arg "--verbose")  (setf lcc:*verbose* "-v")))))
         (lcc:compile-lcc-file (first argv)))
       (error (format nil "at least pass the lcc .lisp file to compile"))))

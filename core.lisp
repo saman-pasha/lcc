@@ -5,7 +5,7 @@
 (defvar *unaries* '(|+| |-| |++| |1+| |--| |1-| |~| |not| |cof| |aof|))
 (defvar *operators* '(|+| |-| |*| |/| |%| |==| |!=| |>| |<| |>=| |<=| |^| |<<| |>>| |xor| |and| |or| |bitand| |bitor|))
 (defvar *assignments* '(|+=| |-=| |*=| |/=| |%=| |<<=| |>>=|))
-(defvar *modifiers* '(|&| |*| |**|))
+(defvar *modifiers* '(|&| |*| |**| |***|))
 
 (defun reving (list result)
   (cond ((consp list) (reving (cdr list) (cons (car list) result)))
@@ -49,10 +49,6 @@
                                   (setf count reset)
                                   (setf count (+ count step))))))
 
-;; prints too many details about compiling and resolving
-(defparameter *debug* nil)
-;; prints warning about symbols and function
-(defparameter *warn* nil)
 ;; current target spec during target specifying
 (defparameter *target-spec* nil)
 ;; storing file name during compiling
@@ -219,4 +215,5 @@
   (dolist (nv name-values)
     (return-from replace-args<
       (loop for arg in args
+            when (> (length arg) 0)
             collect (str:replace-all (car nv) (uiop:native-namestring (cadr nv)) arg)))))

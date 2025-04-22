@@ -61,9 +61,12 @@
       (setf (gethash (name spec) (params parent)) spec)))
 
 (defun add-inner (spec parent)
-  (if (gethash (name spec) (inners parent))
-      (error (format nil "inner exists: ~A in ~A" spec parent))
-      (setf (gethash (name spec) (inners parent)) spec)))
+  (let ((name (name spec)))
+    (when (find-if #'(lambda (attr) (if (key-eq '|decl| (car attr)) t nil)) (attrs spec))
+      (setq name (intern (format nil "~A-~A" '|decl| (name spec)))))
+    (if (gethash name (inners parent))
+        (error (format nil "inner exists: ~A in ~A" spec parent))
+        (setf (gethash name (inners parent)) spec))))
   
 ;;;; specifier
 (defmethod print-object ((spec sp) stream)
@@ -335,9 +338,18 @@
                               ((key-eq '|typeof| ty) (list ty (specify-expr (cadr type))))
                               (t (error (format nil "syntax error ~A" desc))))))))
       (unless (or (null const)     (key-eq const '|const|)) (setq status -2))
-      (unless (or (null modifier)  (key-eq modifier '&) (key-eq modifier '*) (key-eq modifier '**)) (setq status -3))
+      (unless (or (null modifier)
+                (key-eq modifier '&)
+                (key-eq modifier '*)
+                (key-eq modifier '**)
+                (key-eq modifier '***))
+        (setq status -3))
       (unless (or (null const-ptr) (key-eq const-ptr '|const|)) (setq status -4))
-      (unless (or (null const-ptr) (key-eq modifier '*) (key-eq modifier '**)) (setq status -5))
+      (unless (or (null const-ptr)
+                (key-eq modifier '*)
+                (key-eq modifier '**)
+                (key-eq modifier '***))
+        (setq status -5))
       (when noVar (unless (null variable) (setq status -6)))
       (if (key-eq type '|func|)
           (progn
@@ -612,12 +624,28 @@
 		             (when is-static   (push (cons '|static|   t) attributes))
 		             (when is-register (push (cons '|register| t) attributes))
 		             (when is-auto     (push (cons '|auto|     t) attributes))
-		             (when is-alloc    (push (cons '|alloc|    t) attributes))
+		             (when is-alloc
+                       (push (cons '|alloc|    t) attributes)
+                       (unless has-defer ; auto deferment
+                         (setq has-defer
+                               `'(|lambda|
+                                  ((,typeof
+                                       ,(cond
+                                          ((key-eq '|*|  modifier) '|**|)
+                                          ((key-eq '|**| modifier) '|***|)
+                                          (t (error (format nil "not suitable for auto deferral alloc"))))
+                                     ,variable))
+                                  (|free| (|cof| ,variable))))))
 		             (when has-defer   (push (cons '|defer|    (specify-expr has-defer)) attributes))
                      (add-param
                          (make-specifier variable '|@VAR| const typeof modifier const-ptr array
                                          (if (null value) nil (specify-expr value)) attributes)
-                       let-var)))))))
+                       let-var))
+                   (setq is-static   nil)
+                   (setq is-register nil)
+	               (setq is-auto     nil)
+                   (setq is-alloc    nil)
+                   (setq has-defer   nil))))))
     (setf (body let-var) (specify-body (nthcdr 2 def)))
     let-var))
 

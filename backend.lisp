@@ -408,18 +408,15 @@
     (output "~&~A" (indent lvl))
     (set-ast-line (output "if ("))
     (compile-form (name spec) globals) ; condition
-    (set-ast-line (output ") {~%"))
+    (set-ast-line (output ") ~%"))
     (compile-body (default spec) lvl locals)
-    (output "~&~A" (indent lvl))
-    (output "} ")
     (let ((else-body (body spec))
           (locals (copy-specifiers globals)))
       (if (null else-body) (output "~%")
           (progn
-            (set-ast-line (output "else {~%"))
-            (compile-body else-body lvl locals)
             (output "~&~A" (indent lvl))
-            (output "} ~%"))))))
+            (set-ast-line (output "else ~%"))
+            (compile-body else-body lvl locals))))))
 
 (defun compile-switch (spec lvl globals)
   (output "~&~A" (indent lvl))

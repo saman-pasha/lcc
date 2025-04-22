@@ -5,5 +5,6 @@
   (:export
     :*debug*
     :*warn*
+    :*verbose*
     :compile-ast
     :compile-lcc-file))
