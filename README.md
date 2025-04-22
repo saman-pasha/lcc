@@ -818,17 +818,17 @@ Allocation with `alloc` and equivalent code in C:
 ```
 ```c
 void __lccLambda_main_178 (int * xPtr) {
-  printf ("x was %d\n", (*xPtr ));
+  printf("x was %d\n", (*xPtr));
 }
 void __lccLambda_main_179 (int ** ax) {
-  free ((*ax ));
+  free((*ax));
 }
 int main () {
-  { /* lcc#Let177 */
+  {
     int x __attribute__((__cleanup__(__lccLambda_main_178))) = 6;
     int * ax __attribute__((__cleanup__(__lccLambda_main_179))) = ((int *)calloc(5, sizeof(int)));
-    printf ("x is %d\n", x);
-  } /* lcc#Let177 */
+    printf("x is %d\n", x);
+  }
 }
 ```
 ```lisp
@@ -839,15 +839,15 @@ int main () {
 ```
 ```c
 void __lccLambda_main_178 (int *** matrix) {
-  free ((*matrix ));
+  free((*matrix));
 }
 int main () {
-  { /* lcc#Let177 */
+  {
     int n_rows = 4;
     int n_columns = 5;
     int ** matrix __attribute__((__cleanup__(__lccLambda_main_178))) = ((int **)malloc(((n_rows * n_columns) * sizeof(int))));
     printf ("Matrix allocated\n");
-  } /* lcc#Let177 */
+  }
 }
 ```
 Allocation by `alloc` and equivalent `calloc`:
@@ -857,55 +857,66 @@ Allocation by `alloc` and equivalent `calloc`:
 ```
 ```c
 void __lccLambda_main_178 (char ** safe_alloc) {
-  free ((*safe_alloc ));
+  free((*safe_alloc));
 }
 int main () {
-  { /* lcc#Let177 */
-    char * safe_alloc __attribute__((__cleanup__(__lccLambda_main_178 ))) = ((char *)calloc (15, sizeof(char)));
+  {
+    char * safe_alloc __attribute__((__cleanup__(__lccLambda_main_178))) = ((char *)calloc(15, sizeof(char)));
     printf ("Memory allocated safely\n");
-  } /* lcc#Let177 */
+  }
 }
 ```
 ## Structure
-`declares` form is for declaring one or more variable(s) at the end of nested struct declaration just for anonymous structures.
-Use `$` form for struct's member access and `->` form for member access of pointer of struct.
+`declare` clause is for declaring one or more variable(s) at the end of nested struct declaration just for anonymous structures.
+Use `$` form for struct's member access and `->` form for member access of pointer of struct. Both `$` and `->` have other utility if a function defined in source targets and doesn't have `{resolve #f}` attribute. `$` operator resolves attribute access for both instance and pointer variables, also `->` operator won't work for pointer access instead it resolves to method access for structures. `inline` functions or methods in header files also don't have resolving process. Methods can be defined with `method` clause and naming convention `Struct->Method`. All methods have `this` parametr automatically and will receive calling instance or pointer.
 ```lisp
-(struct Course
-  (member char WebSite [50])
-  (member char Subject [50])
-  (member int  Price))
-  
-(variable Course c1 . '{"domain.com" "Compilers" 100})
-(variable Course * pc1 . #'(addressof c1))
-  
-(function print_course ()
-  (printf "Course: %s in %s for %d$" 
-    ($ c1 Subject) 
-    ($ c1 WebSite)
-    ($ c1 Price))
-  (printf "Course: %s in %s for %d$" 
-    (-> pc1 Subject) 
-    (-> pc1 WebSite)
-    (-> pc1 Price)))
+(header "course.h" ()
+        (struct Course
+          (member char WebSite [50])
+          (member char Subject [50])
+          (member int  Price))
+
+        {decl} (method Course->Print ()))
+
+(source "course.c" (:std #t :compile #t :link #t)
+        (include "course.h")
+        
+        (var Course c1 . '{"domain.com" "Compilers" 100})
+        (var Course * pc1 . #'(aof c1))
+        
+        (method Course->Print ()
+                (printf "Course: %s in %s for %d$\n" 
+                  ($ this Subject) 
+                  ($ this WebSite)
+                  ($ this Price)))
+        
+        (func main ()
+              (-> c1 Print) 
+              (-> pc1 Print)))
 ```
 ```c
+// course.h
 typedef struct Course {
-  char WebSite [50];
-  char Subject [50];
+  char WebSite[50];
+  char Subject[50];
   int Price;
 } Course;
+void Course_Print (Course * this);
 
+// course.c
 Course c1 = {"domain.com", "Compilers", 100};
-Course * pc1 = &c1;
-
-void print_course () {
-  printf("Course: %s in %s for %d$", c1.Subject, c1.WebSite, c1.Price);
-  printf("Course: %s in %s for %d$", pc1->Subject, pc1->WebSite, pc1->Price);
+Course * pc1 = (&c1 );
+void Course_Print (Course * this) {
+  printf ("Course: %s in %s for %d$\n", (this ->Subject ), (this ->WebSite ), (this ->Price ));
+}
+int main () {
+  Course_Print(&c1);
+  Course_Print(pc1 );
 }
 ```
 ## Union
-`declares` form is for declaring one or more variable(s) at the end of nested union declaration just for anonymous unions.
-Use `$` form for union's member access and `->` form for member access of pointer of union.
+`declare` form is for declaring one or more variable(s) at the end of nested union declaration just for anonymous unions.
+Use `$` form for union's member access and `->` form for member access of pointer of union. Union supports resolver like Struct.
 ```lisp
 (struct USHAContext
   (member int whichSha)                 ; which SHA is being used
@@ -915,7 +926,7 @@ Use `$` form for union's member access and `->` form for member access of pointe
     (member SHA256Context sha256Context)
     (member SHA384Context sha384Context) 
     (member SHA512Context sha512Context)
-    (declares ctx)))
+    (declare ctx)))
 ```
 ```c
 typedef struct USHAContext {
@@ -972,6 +983,13 @@ typedef struct Student {
 ```c
 typedef int * intptr_t;
 ```
+## lcc.lisp Command Line Arguments
+`sbcl --script /path/to/lcc.lisp /path/to/some-lcc-file.lisp {args}`
+Available arguments:
+* --debug : will prints too many details about specifying, resolving and compiling.
+* --verbose : adds `-v` option to `clang` and `libtool` commands to print more details about compiling and linking. usefull when linking and libraries.
+
+`{$CWD}` placeholder is available inside `:compile` and `:link` command for every targets. 
 ## C++ Compiler
 C++ compiler could be used instead of C compiler then some features availables:
 * `&` modifier in function argument for pass by reference.
