@@ -9,13 +9,18 @@ Lisp C Compiler aka. 'LCC' programming language, which compiles Lisp-like syntax
 * Copy `lcc.lisp` file from source folder into your project path.
 * Send your file as an argument to lcc.lisp. `sbcl --script lcc.lisp test.lisp`
 * If you are using EMACS editor, copy `mode.lisp` file content into `.emacs` or `.emacs.d/init.el` file for syntax highlighting.
-## *New Features
+## * New Features
 * lcc now uses `IR` (Intermediate Representation) to handle more clauses and features.
-* `lambda` clause allows developer to write in-place function for sending as other function argument or `defer` destructure.
-* `defer` attribute. only available for variables defined by `let` expression. Allows developers to set a function how to destruct a variable or a pointer.
-* auto deferral is a way let expressions will defined to automatically release dynamic memory allocated by `alloc` clause.
-* `method` clause 
+* `lambda` clause allows developer to write in-place function for sending as other function argument or `defer` destructure. refer to [lambda](test/lambda) test folder `lambda.lisp` sample.
+* `defer` attribute. only available for variables defined by `let` expression. Allows developers to set a function how to destruct a variable or a pointer. refer to [defer](test/lambda) test folder `defer.lisp` sample.
+* auto deferral is a way let expressions will defined to automatically release dynamic memory allocated by `alloc` clause. refer to [alloc](test/lambda) test folder `defer.lisp` sample.
+* `method` clause will receive current instance or pointer as `this` parameter. Methods are defined outside a structure by access method operator `->` placed between struct name and method name like `Employee->Sign`.  refer to [method](test/method) test folder `method.lisp` sample.
+* `auto` variable type simplifies lambda and function pointer variables. also `typeof` clause is added to use other variables type for define another variable.
+* `func` type allows developer to define a function pointer which wasn't available before.
+* refer to [basic](test) `basic.lisp` file for some struct definition samples.
+* refer to [control](test) `control.lisp` file for some control structures samples.
 ## Identifiers
+For basic variable definition refer to [var](test) `var.lisp` file.
 ```lisp
 (var int amount)
 (var double total)
