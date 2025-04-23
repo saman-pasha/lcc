@@ -34,13 +34,13 @@ double * total2;
 ## Constants
 ```lisp
 (var const int SIDE . 10)
-(var const int * SIDE1 . 11)
-(var const int * const SIDE2 . 12)
+(var const int * SIDE1 . #'(aof SIDE))
+(var const int * const SIDE2 . #'(aof SIDE1))
 ```
 ```c
 const int SIDE = 10;
-const int * SIDE1 = 11;
-const int * const SIDE2 = 12;
+const int * SIDE1 = &SIDE;
+const int * const SIDE2 = &SIDE1;
 ```
 ## Operators
 ### Arithmetic
@@ -1007,6 +1007,6 @@ Available arguments:
 C++ compiler could be used instead of C compiler then some features availables:
 * `&` modifier in function argument for pass by reference.
 * Default value for members of structs.
-* `method` form for defining a member function inside of structs.
+* `func` form for defining a member function inside of structs. Call these methods by `$` member access operator.
 
 # Good Luck!
