@@ -591,7 +591,7 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
 ```lisp
 (let ((int a))
   (printf "Please enter a number between 1 and 5: ")
-  (scanf "%d" (addressof a))
+  (scanf "%d" (aof a))
   
   (switch a
     (case 1 (printf "You chose One")   break)
