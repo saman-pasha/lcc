@@ -34,13 +34,13 @@ double * total2;
 ## Constants
 ```lisp
 (var const int SIDE . 10)
-(var const int * SIDE1 . 11)
-(var const int * const SIDE2 . 12)
+(var const int * SIDE1 . #'(aof SIDE))
+(var const int * const SIDE2 . #'(aof SIDE1))
 ```
 ```c
 const int SIDE = 10;
-const int * SIDE1 = 11;
-const int * const SIDE2 = 12;
+const int * SIDE1 = &SIDE;
+const int * const SIDE2 = &SIDE1;
 ```
 ## Operators
 ### Arithmetic
@@ -173,6 +173,7 @@ ANSI C provides three types of data types:
 lcc supports declaration and definition of all ANCI C data types.
 lcc Data Type | C Data Type
 ------------- | -----------
+`nil`|`NULL`
 `void`|`void`
 `bool`|`bool`
 `char`|`char`
@@ -213,12 +214,12 @@ int __lccLambda_main_178 (int x) {
   return x ;
 }
 int main () {
-  { /* lcc#Let177 */
+  { 
     double price = 500.4;
     double price_array[] = {100.2, 230.7, 924.8};
     double price_calc = calculate_price ();
     __auto_type identity = __lccLambda_main_178 ;
-  } /* lcc#Let177 */
+  } 
 }
 ```
 ### Free Variable Declaration and Initialization
@@ -256,7 +257,7 @@ A scoped variable can has some attributes or storage class. each attribute enclo
 * {auto}
 * {register}
 * {static}
-* {defer '(lambda ((int * intPtr)) (printf "int gone out of scope\n"))} variable destructor
+* {defer `'(lambda ((int * intPtr)) (printf "int gone out of scope\n"))`} variable destructor
 ```lisp
 (source "main.c" ()
         (func main ()
@@ -270,16 +271,16 @@ A scoped variable can has some attributes or storage class. each attribute enclo
 ```
 ```c
 void __lccLambda_main_178 (Employee ** empPtr) {
-  free ((*empPtr ));
+  free ((*empPtr));
   printf ("from defer, emp is freed\n");
 }
 int main () {
-  { /* lcc#Let177 */
+  { 
     static int width = 3;
     register int height = 4;
-    Employee * emp __attribute__((__cleanup__(__lccLambda_main_178 ))) = ((Employee *)malloc (sizeof(Employee)));
-    printf ("area: %d", (width  *  height  ));
-  } /* lcc#Let177 */
+    Employee * emp __attribute__((__cleanup__(__lccLambda_main_178))) = ((Employee *)malloc(sizeof(Employee)));
+    printf ("area: %d", (width * height));
+  } 
 }
 ```
 ### Assignment
@@ -632,17 +633,31 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
 ```
 ### for
 ```lisp
-(for ((int n . 1)
-      (int times . 5)) ; initialize
-  (<= n times)         ; test
-  ((1+ n))             ; step
-  (printf "lcc for loops: %d\n" n))
+(let ((int n)
+      (int times))
+               (for ((n . 1)
+                      (times . 5))     ; initialize
+                  (<= n times)         ; test
+                  ((1+ n))             ; step
+                  (printf "lcc for loop: %d\n" n)))
+
+              (for ((int n . 1)
+                    (times . 2))     ; initialize
+                (<= n times)         ; test
+                ((1+ n))             ; step
+                (printf "another initialization for loop: %d\n" n))
 ```
 ```c
-for (int n = 1, int times = 5; (n <= times);) {
-  n++;
-  printf("lcc for loops: %d\n", n);
-}
+  {
+    int n;
+    int times;
+    for ( n = 1, times = 5; (n <= times); (n ++)) {
+      printf ("lcc for loop: %d\n", n);
+    } 
+  }
+  for (int n = 1, times = 2; (n <= times); (n ++)) {
+    printf ("another initialization for loop: %d\n", n);
+  } 
 ```
 ## Function
 lcc has some points on functions:
@@ -690,20 +705,20 @@ lcc has some points on functions:
 #include <stdbool.h>
 int addition (int * a, int * b);
 int main () {
-  { /* lcc#Let177 */
+  {
     int answer;
     int num1 = 10;
     int num2 = 5;
-    int (*aFuncPtr) (int *  , int *  ) = addition;
-    answer  = addition ((&num1 ), (&num2 ));
-    printf ("The addition of two numbers is: %d\n", answer );
-    answer  = aFuncPtr ((&num1 ), (&num2 ));
-    printf ("The addition of two numbers by function pointer is: %d\n", answer );
-  } /* lcc#Let177 */
+    int (*aFuncPtr) (int * , int * ) = addition;
+    answer  = addition ((&num1), (&num2));
+    printf ("The addition of two numbers is: %d\n", answer);
+    answer  = aFuncPtr ((&num1), (&num2));
+    printf ("The addition of two numbers by function pointer is: %d\n", answer);
+  }
   return 0;
 }
 int addition (int * a, int * b) {
-  return ((*a ) +  (*b ) );
+  return ((*a) +  (*b));
 }
 ```
 ## Array
@@ -917,13 +932,13 @@ void Course_Print (Course * this);
 
 // course.c
 Course c1 = {"domain.com", "Compilers", 100};
-Course * pc1 = (&c1 );
+Course * pc1 = (&c1);
 void Course_Print (Course * this) {
-  printf ("Course: %s in %s for %d$\n", (this ->Subject ), (this ->WebSite ), (this ->Price ));
+  printf ("Course: %s in %s for %d$\n", (this ->Subject), (this ->WebSite), (this ->Price));
 }
 int main () {
   Course_Print(&c1);
-  Course_Print(pc1 );
+  Course_Print(pc1);
 }
 ```
 ## Union
@@ -999,13 +1014,13 @@ typedef int * intptr_t;
 `sbcl --script /path/to/lcc.lisp /path/to/some-lcc-file.lisp {args}`
 Available arguments:
 * --debug : will prints too many details about specifying, resolving and compiling.
-* --verbose : adds `-v` option to `clang` and `libtool` commands to print more details about compiling and linking. usefull when linking and libraries.
+* --verbose : adds `-v` option to `clang` and `libtool` commands to print more details about compiling and linking. usefull when linking many complex libraries.
 
 `{$CWD}` placeholder is available inside `:compile` and `:link` command for every targets. 
 ## C++ Compiler
 C++ compiler could be used instead of C compiler then some features availables:
 * `&` modifier in function argument for pass by reference.
 * Default value for members of structs.
-* `method` form for defining a member function inside of structs.
+* `func` form for defining a member function inside of structs. Call these methods by `$` member access operator `(($ emp Sign) aDoc)`. 
 
 # Good Luck!
