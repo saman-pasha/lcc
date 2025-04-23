@@ -633,17 +633,31 @@ If form accepts 2 or 3 argument. condition, form for true evaluation of conditio
 ```
 ### for
 ```lisp
-(for ((int n . 1)
-      (int times . 5)) ; initialize
-  (<= n times)         ; test
-  ((1+ n))             ; step
-  (printf "lcc for loops: %d\n" n))
+(let ((int n)
+      (int times))
+               (for ((n . 1)
+                      (times . 5))     ; initialize
+                  (<= n times)         ; test
+                  ((1+ n))             ; step
+                  (printf "lcc for loop: %d\n" n)))
+
+              (for ((int n . 1)
+                    (times . 2))     ; initialize
+                (<= n times)         ; test
+                ((1+ n))             ; step
+                (printf "another initialization for loop: %d\n" n))
 ```
 ```c
-for (int n = 1, int times = 5; (n <= times);) {
-  n++;
-  printf("lcc for loops: %d\n", n);
-}
+  {
+    int n;
+    int times;
+    for ( n = 1, times = 5; (n <= times); (n ++)) {
+      printf ("lcc for loop: %d\n", n);
+    } 
+  }
+  for (int n = 1, times = 2; (n <= times); (n ++)) {
+    printf ("another initialization for loop: %d\n", n);
+  } 
 ```
 ## Function
 lcc has some points on functions:
@@ -691,20 +705,20 @@ lcc has some points on functions:
 #include <stdbool.h>
 int addition (int * a, int * b);
 int main () {
-  { /* lcc#Let177 */
+  {
     int answer;
     int num1 = 10;
     int num2 = 5;
-    int (*aFuncPtr) (int *  , int *  ) = addition;
-    answer  = addition ((&num1 ), (&num2 ));
-    printf ("The addition of two numbers is: %d\n", answer );
-    answer  = aFuncPtr ((&num1 ), (&num2 ));
-    printf ("The addition of two numbers by function pointer is: %d\n", answer );
-  } /* lcc#Let177 */
+    int (*aFuncPtr) (int * , int * ) = addition;
+    answer  = addition ((&num1), (&num2));
+    printf ("The addition of two numbers is: %d\n", answer);
+    answer  = aFuncPtr ((&num1), (&num2));
+    printf ("The addition of two numbers by function pointer is: %d\n", answer);
+  }
   return 0;
 }
 int addition (int * a, int * b) {
-  return ((*a ) +  (*b ) );
+  return ((*a) +  (*b));
 }
 ```
 ## Array
@@ -918,13 +932,13 @@ void Course_Print (Course * this);
 
 // course.c
 Course c1 = {"domain.com", "Compilers", 100};
-Course * pc1 = (&c1 );
+Course * pc1 = (&c1);
 void Course_Print (Course * this) {
-  printf ("Course: %s in %s for %d$\n", (this ->Subject ), (this ->WebSite ), (this ->Price ));
+  printf ("Course: %s in %s for %d$\n", (this ->Subject), (this ->WebSite), (this ->Price));
 }
 int main () {
   Course_Print(&c1);
-  Course_Print(pc1 );
+  Course_Print(pc1);
 }
 ```
 ## Union
@@ -1000,13 +1014,13 @@ typedef int * intptr_t;
 `sbcl --script /path/to/lcc.lisp /path/to/some-lcc-file.lisp {args}`
 Available arguments:
 * --debug : will prints too many details about specifying, resolving and compiling.
-* --verbose : adds `-v` option to `clang` and `libtool` commands to print more details about compiling and linking. usefull when linking and libraries.
+* --verbose : adds `-v` option to `clang` and `libtool` commands to print more details about compiling and linking. usefull when linking many complex libraries.
 
 `{$CWD}` placeholder is available inside `:compile` and `:link` command for every targets. 
 ## C++ Compiler
 C++ compiler could be used instead of C compiler then some features availables:
 * `&` modifier in function argument for pass by reference.
 * Default value for members of structs.
-* `func` form for defining a member function inside of structs. Call these methods by `$` member access operator.
+* `func` form for defining a member function inside of structs. Call these methods by `$` member access operator `(($ emp Sign) aDoc)`. 
 
 # Good Luck!
