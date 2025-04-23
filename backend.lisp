@@ -3,16 +3,18 @@
 (defun compile-name (name globals)
   (if (symbolp name)
       (set-ast-line (output (symbol-name name)))
-      (let ((type (car name)))
-        (cond ((or (key-eq '|struct| type) (key-eq '|union| type))
-               (set-ast-line (output (symbol-name type)))
-               (output " ")
-               (set-ast-line (output (symbol-name (cadr name)))))
-              ((key-eq '|typeof| type)
-               (set-ast-line (output "typeof("))
-               (compile-form (cadr name) globals)
-               (set-ast-line (output ")")))
-              (t (error (format nil  "wrong name: ~A" name)))))))
+      (if (and (typep name 'sp) (key-eq '|@TYPEOF| (construct name)))
+          (compile-typeof name globals)
+          (let ((type (car name)))
+            (cond ((or (key-eq '|struct| type) (key-eq '|union| type))
+                   (set-ast-line (output (symbol-name type)))
+                   (output " ")
+                   (set-ast-line (output (symbol-name (cadr name)))))
+                  ((key-eq '|typeof| type)
+                   (set-ast-line (output "typeof("))
+                   (compile-form (cadr name) globals)
+                   (set-ast-line (output ")")))
+                  (t (error (format nil  "wrong name: ~A" name))))))))
 
 (defun compile-type-name (name globals)
   (cond ((key-eq name '|uchar|)  (set-ast-line (output "unsigned char")))
@@ -274,7 +276,7 @@
 
 (defun compile-typeof (spec globals)
   (set-ast-line (output "typeof("))
-  (compile-form (name spec) globals)
+  (compile-form (default spec) globals)
   (output ")"))
 
 (defun compile-args (args globals comma-first)
@@ -506,9 +508,12 @@
   (output "~&~A}~%" (indent lvl)))
 
 (defun compile-function (spec lvl globals &optional (asType nil))
-  ;; compile lambdas before function
-  (loop for lambda being the hash-value of (inners spec)
-        do (compile-function lambda lvl globals))
+  ;; compile lambdas and online structs before function
+  (loop for los being the hash-value of (inners spec)
+        do (progn
+             (if (key-eq '|@STRUCT| (construct los))
+                 (compile-struct   los lvl globals)
+                 (compile-function los lvl globals))))
   ;; resolve ?
   (let ((is-static  nil)
 	    (is-declare nil)

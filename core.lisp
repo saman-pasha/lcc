@@ -215,5 +215,6 @@
   (dolist (nv name-values)
     (return-from replace-args<
       (loop for arg in args
-            when (> (length arg) 0)
-            collect (str:replace-all (car nv) (uiop:native-namestring (cadr nv)) arg)))))
+            when (or (symbolp arg) (> (length arg) 0))
+            collect (str:replace-all (car nv) (uiop:native-namestring (cadr nv))
+                                     (if (symbolp arg) (symbol-value arg) arg))))))

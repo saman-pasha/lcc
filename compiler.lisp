@@ -64,8 +64,12 @@
                                 (ast-key (ast-key< (parse-integer (nth 1 err-line))
                                            (parse-integer (nth 2 err-line)) :file *target-file*)))
                            (setf (getf (gethash ast-key (nth 0 *ast-lines*)) 'info) (nth 3 err-line))
-                           (display "run" *ast-run* ">" ast-key
-                                    (getf (gethash ast-key (nth 0 *ast-lines*)) 'info) #\NewLine))))))
+                           (display "run err" *ast-run* ">" ast-key
+                                    (getf (gethash ast-key (nth 0 *ast-lines*)) 'info) #\NewLine)))))
+                   (with-input-from-string (out-stream (get-output-stream-string stdout))
+                     (do ((s (read-line out-stream nil nil) (read-line out-stream nil nil)))
+                         ((eql s nil))
+                       (display "run out" *ast-run* ">" s #\NewLine))))
                ;; iterate over ast lines
                ;; (with-input-from-string (out-stream (get-output-stream-string stdout))
                ;;   (do ((s (read-line out-stream nil nil) (read-line out-stream nil nil)))
