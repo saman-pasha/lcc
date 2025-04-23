@@ -214,12 +214,12 @@ int __lccLambda_main_178 (int x) {
   return x ;
 }
 int main () {
-  { /* lcc#Let177 */
+  { 
     double price = 500.4;
     double price_array[] = {100.2, 230.7, 924.8};
     double price_calc = calculate_price ();
     __auto_type identity = __lccLambda_main_178 ;
-  } /* lcc#Let177 */
+  } 
 }
 ```
 ### Free Variable Declaration and Initialization
@@ -257,7 +257,7 @@ A scoped variable can has some attributes or storage class. each attribute enclo
 * {auto}
 * {register}
 * {static}
-* {defer '(lambda ((int * intPtr)) (printf "int gone out of scope\n"))} variable destructor
+* {defer `'(lambda ((int * intPtr)) (printf "int gone out of scope\n"))`} variable destructor
 ```lisp
 (source "main.c" ()
         (func main ()
@@ -271,16 +271,16 @@ A scoped variable can has some attributes or storage class. each attribute enclo
 ```
 ```c
 void __lccLambda_main_178 (Employee ** empPtr) {
-  free ((*empPtr ));
+  free ((*empPtr));
   printf ("from defer, emp is freed\n");
 }
 int main () {
-  { /* lcc#Let177 */
+  { 
     static int width = 3;
     register int height = 4;
-    Employee * emp __attribute__((__cleanup__(__lccLambda_main_178 ))) = ((Employee *)malloc (sizeof(Employee)));
-    printf ("area: %d", (width  *  height  ));
-  } /* lcc#Let177 */
+    Employee * emp __attribute__((__cleanup__(__lccLambda_main_178))) = ((Employee *)malloc(sizeof(Employee)));
+    printf ("area: %d", (width * height));
+  } 
 }
 ```
 ### Assignment
