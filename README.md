@@ -1,5 +1,5 @@
 # lcc
-Lisp C Compiler aka. 'LCC' programming language, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
+Lisp C Compiler aka. 'El Cici' programming language, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
 ## Instruction
 * Install [SBCL](www.sbcl.org).
 * `clang` required for compiling and linking. `brew` can be used to install clang. [Clang](https://clang.llvm.org).
