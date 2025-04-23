@@ -1,5 +1,5 @@
 # lcc
-Lisp C Compiler aka. 'LCC' programming language, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
+Lisp C Compiler aka. 'El-Cici' programming language, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
 ## Instruction
 * Install [SBCL](www.sbcl.org).
 * `clang` required for compiling and linking. `brew` can be used to install clang. [Clang](https://clang.llvm.org).
@@ -16,6 +16,7 @@ Lisp C Compiler aka. 'LCC' programming language, which compiles Lisp-like syntax
 * auto deferral is a way let expressions will defined to automatically release dynamic memory allocated by `alloc` clause. refer to [alloc](test/lambda) test folder `defer.lisp` sample.
 * `method` clause will receive current instance or pointer as `this` parameter. Methods are defined outside a structure by access method operator `->` placed between struct name and method name like `Employee->Sign`.  refer to [method](test/method) test folder `method.lisp` sample.
 * `auto` variable type simplifies lambda and function pointer variables. also `typeof` clause is added to use other variables type for define another variable.
+* `inline struct` can be defined in variable declaration, function parameters or outputs which permits to return multiple values from a function. refer to [multi](test) `multi.lisp` file for complex samples.
 * `func` type allows developer to define a function pointer which wasn't available before.
 * refer to [basic](test) `basic.lisp` file for some struct definition samples.
 * refer to [control](test) `control.lisp` file for some control structures samples.
@@ -389,7 +390,7 @@ All features could be omitted or if available accept `#t` for default behaviour 
 
 ;; Custom compilation
 (source "obj2.c"
-  (:compile "-c obj2.c -o objmul.o")
+  (:compile "-c obj2.c -o objmul.lo")
   (include "mymath.h")
   (func obj2_does ((int x) (int y)) (out int)
 	    (return (* x y))))
@@ -418,46 +419,81 @@ All features could be omitted or if available accept `#t` for default behaviour 
 ```
 lcc % sbcl --script lcc.lisp test/test.lisp
 software type: "Darwin"
+arg specified: test/mylib.lisp
 lcc: specifying target mymath.h
 lcc: resolving target mymath.h
 lcc: specifying target obj1.c
 lcc: resolving target obj1.c.run1.c
+run out 1 > glibtool: compile:  clang -g -O "" -c obj1.c.run1.c  -fno-common -DPIC -o .libs/obj1.c.run1.o 
+run out 1 > glibtool: compile:  clang -g -O "" -c obj1.c.run1.c -o obj1.c.run1.o >/dev/null 2>&1 
 lcc: resolving target obj1.c.run2.c
+run out 2 > glibtool: compile:  clang -g -O "" -c obj1.c.run2.c  -fno-common -DPIC -o .libs/obj1.c.run2.o 
+run out 2 > glibtool: compile:  clang -g -O "" -c obj1.c.run2.c -o obj1.c.run2.o >/dev/null 2>&1 
 lcc: resolving target obj1.c.run3.c
+run out 3 > glibtool: compile:  clang -g -O "" -c obj1.c.run3.c  -fno-common -DPIC -o .libs/obj1.c.run3.o 
+run out 3 > glibtool: compile:  clang -g -O "" -c obj1.c.run3.c -o obj1.c.run3.o >/dev/null 2>&1 
 lcc: compiling target obj1.c
-glibtool: compile:  clang -g -O -c obj1.c  -fno-common -DPIC -o .libs/obj1.o
-glibtool: compile:  clang -g -O -c obj1.c -o obj1.o >/dev/null 2>&1
+glibtool: compile:  clang -g -O "" -c obj1.c  -fno-common -DPIC -o .libs/obj1.o
+glibtool: compile:  clang -g -O "" -c obj1.c -o obj1.o >/dev/null 2>&1
 lcc: specifying target obj2.c
 lcc: resolving target obj2.c.run1.c
+run out 1 > glibtool: compile:  clang -g -O "" -c obj2.c  -fno-common -DPIC -o .libs/objmul.o 
+run out 1 > glibtool: compile:  clang -g -O "" -c obj2.c -o objmul.o >/dev/null 2>&1 
 lcc: resolving target obj2.c.run2.c
+run out 2 > glibtool: compile:  clang -g -O "" -c obj2.c  -fno-common -DPIC -o .libs/objmul.o 
+run out 2 > glibtool: compile:  clang -g -O "" -c obj2.c -o objmul.o >/dev/null 2>&1 
 lcc: resolving target obj2.c.run3.c
+run out 3 > glibtool: compile:  clang -g -O "" -c obj2.c  -fno-common -DPIC -o .libs/objmul.o 
+run out 3 > glibtool: compile:  clang -g -O "" -c obj2.c -o objmul.o >/dev/null 2>&1 
 lcc: compiling target obj2.c
-glibtool: compile:  clang -g -O -c obj2.c  -fno-common -DPIC -o .libs/objmul.o
-glibtool: compile:  clang -g -O -c obj2.c -o objmul.o >/dev/null 2>&1
+glibtool: compile:  clang -g -O "" -c obj2.c  -fno-common -DPIC -o .libs/objmul.o
+glibtool: compile:  clang -g -O "" -c obj2.c -o objmul.o >/dev/null 2>&1
 lcc: specifying target obj3.c
 lcc: resolving target obj3.c.run1.c
+run out 1 > glibtool: compile:  clang -g -O "" -c obj3.c.run1.c  -fno-common -DPIC -o .libs/obj3.c.run1.o 
+run out 1 > glibtool: compile:  clang -g -O "" -c obj3.c.run1.c -o obj3.c.run1.o >/dev/null 2>&1 
+run out 1 > glibtool: link: rm -fr  .libs/libMyMath.a .libs/libMyMath.la 
+run out 1 > glibtool: link: ar cr .libs/libMyMath.a .libs/obj1.o .libs/objmul.o .libs/obj3.o  
+run out 1 > glibtool: link: ranlib .libs/libMyMath.a 
+run out 1 > glibtool: link: ( cd ".libs" && rm -f "libMyMath.la" && ln -s "../libMyMath.la" "libMyMath.la" ) 
 lcc: resolving target obj3.c.run2.c
+run out 2 > glibtool: compile:  clang -g -O "" -c obj3.c.run2.c  -fno-common -DPIC -o .libs/obj3.c.run2.o 
+run out 2 > glibtool: compile:  clang -g -O "" -c obj3.c.run2.c -o obj3.c.run2.o >/dev/null 2>&1 
+run out 2 > glibtool: link: rm -fr  .libs/libMyMath.a .libs/libMyMath.la 
+run out 2 > glibtool: link: ar cr .libs/libMyMath.a .libs/obj1.o .libs/objmul.o .libs/obj3.o  
+run out 2 > glibtool: link: ranlib .libs/libMyMath.a 
+run out 2 > glibtool: link: ( cd ".libs" && rm -f "libMyMath.la" && ln -s "../libMyMath.la" "libMyMath.la" ) 
 lcc: resolving target obj3.c.run3.c
+run out 3 > glibtool: compile:  clang -g -O "" -c obj3.c.run3.c  -fno-common -DPIC -o .libs/obj3.c.run3.o 
+run out 3 > glibtool: compile:  clang -g -O "" -c obj3.c.run3.c -o obj3.c.run3.o >/dev/null 2>&1 
+run out 3 > glibtool: link: rm -fr  .libs/libMyMath.a .libs/libMyMath.la 
+run out 3 > glibtool: link: ar cr .libs/libMyMath.a .libs/obj1.o .libs/objmul.o .libs/obj3.o  
+run out 3 > glibtool: link: ranlib .libs/libMyMath.a 
+run out 3 > glibtool: link: ( cd ".libs" && rm -f "libMyMath.la" && ln -s "../libMyMath.la" "libMyMath.la" ) 
 lcc: compiling target obj3.c
-glibtool: compile:  clang -g -O -c obj3.c  -fno-common -DPIC -o .libs/obj3.o
-glibtool: compile:  clang -g -O -c obj3.c -o obj3.o >/dev/null 2>&1
+glibtool: compile:  clang -g -O "" -c obj3.c  -fno-common -DPIC -o .libs/obj3.o
+glibtool: compile:  clang -g -O "" -c obj3.c -o obj3.o >/dev/null 2>&1
 glibtool: link: rm -fr  .libs/libMyMath.a .libs/libMyMath.la
 glibtool: link: ar cr .libs/libMyMath.a .libs/obj1.o .libs/objmul.o .libs/obj3.o 
 glibtool: link: ranlib .libs/libMyMath.a
 glibtool: link: ( cd ".libs" && rm -f "libMyMath.la" && ln -s "../libMyMath.la" "libMyMath.la" )
 lcc: specifying target main.c
 lcc: resolving target main.c.run1.c
+run out 1 > glibtool: compile:  clang -g -O "" -c main.c.run1.c  -fno-common -DPIC -o .libs/main.c.run1.o 
+run out 1 > glibtool: compile:  clang -g -O "" -c main.c.run1.c -o main.c.run1.o >/dev/null 2>&1 
+run out 1 > glibtool: link: clang -g -O "" -o CompileTest .libs/main.o  -L/Users/a1/Projects/GitHub/lcc/test/ /Users/a1/Projects/GitHub/lcc/test/.libs/libMyMath.a  
 lcc: resolving target main.c.run2.c
+run out 2 > glibtool: compile:  clang -g -O "" -c main.c.run2.c  -fno-common -DPIC -o .libs/main.c.run2.o 
+run out 2 > glibtool: compile:  clang -g -O "" -c main.c.run2.c -o main.c.run2.o >/dev/null 2>&1 
+run out 2 > glibtool: link: clang -g -O "" -o CompileTest .libs/main.o  -L/Users/a1/Projects/GitHub/lcc/test/ /Users/a1/Projects/GitHub/lcc/test/.libs/libMyMath.a  
 lcc: resolving target main.c.run3.c
+run out 3 > glibtool: compile:  clang -g -O "" -c main.c.run3.c  -fno-common -DPIC -o .libs/main.c.run3.o 
+run out 3 > glibtool: compile:  clang -g -O "" -c main.c.run3.c -o main.c.run3.o >/dev/null 2>&1 
+run out 3 > glibtool: link: clang -g -O "" -o CompileTest .libs/main.o  -L/Users/a1/Projects/GitHub/lcc/test/ /Users/a1/Projects/GitHub/lcc/test/.libs/libMyMath.a  
 lcc: compiling target main.c
-glibtool: compile:  clang -g -O -c main.c  -fno-common -DPIC -o .libs/main.o
-glibtool: compile:  clang -g -O -c main.c -o main.o >/dev/null 2>&1
-glibtool: link: clang -g -O -v -o CompileTest .libs/main.o  -L/Users/a1/Projects/GitHub/lcc/test/ /Users/a1/Projects/GitHub/lcc/test/.libs/libMyMath.a 
-Apple clang version 17.0.0 (clang-1700.0.13.3)
-Target: x86_64-apple-darwin24.4.0
-Thread model: posix
-InstalledDir: /Library/Developer/CommandLineTools/usr/bin
- "/Library/Developer/CommandLineTools/usr/bin/ld" -demangle -lto_library /Library/Developer/CommandLineTools/usr/lib/libLTO.dylib -no_deduplicate -dynamic -arch x86_64 -platform_version macos 15.0.0 15.4 -syslibroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -O1 -mllvm -enable-linkonceodr-outlining -o CompileTest -L/Users/a1/Projects/GitHub/lcc/test/ -L/usr/local/lib .libs/main.o /Users/a1/Projects/GitHub/lcc/test/.libs/libMyMath.a -lSystem /Library/Developer/CommandLineTools/usr/lib/clang/17/lib/darwin/libclang_rt.osx.a
+glibtool: compile:  clang -g -O "" -c main.c  -fno-common -DPIC -o .libs/main.o
+glibtool: compile:  clang -g -O "" -c main.c -o main.o >/dev/null 2>&1
+glibtool: link: clang -g -O "" -o CompileTest .libs/main.o  -L/Users/a1/Projects/GitHub/lcc/test/ /Users/a1/Projects/GitHub/lcc/test/.libs/libMyMath.a
 ```
 ### Sections
 * Documentations: starts with semi-colon(s) ";"
@@ -668,7 +704,6 @@ lcc has some points on functions:
     * {inline}
     * {extern}
     * {resolve #f) means do not resolve this function
-* Each declared function defined a function pointer typedef named FunctionName_t.
 ```lisp
 (source "main.c"
   (:std #t :compile #t :link #t)
@@ -719,6 +754,57 @@ int main () {
 }
 int addition (int * a, int * b) {
   return ((*a) +  (*b));
+}
+```
+* Functions can return multiple values by inline structs.
+```lisp
+(source "main.c" (:std #t :compile #t :link #t)
+        (func aMultiReturnFunc ((int x) (int y)) (out '{(int a) (int b)})
+              (return '{ x y }))
+
+        (func aMultiReturnFuncS ((int x) (int y)) (out '{(int a) (int b)})
+              (let (((typeof (aMultiReturnFuncS x y)) s . '{ x y })) 
+                (return s)))
+        
+        (func main ()
+              (let ((int n . 3)
+                    (int t . 4)
+                    ((typeof (aMultiReturnFunc 1 1)) mr)
+                    ((typeof (aMultiReturnFuncS 1 1)) mrt))
+                (set mr (aMultiReturnFunc n t))
+                (printf "a: %d, b: %d\n" ($ mr a) ($ mr b))
+                (set mrt (aMultiReturnFuncS (++ n) (++ t)))
+                (printf "a: %d, b: %d\n" ($ mrt a) ($ mrt b)))))
+```
+```c
+typedef struct __lccStruct_aMultiReturnFunc_177 {
+  int a;
+  int b;
+} __lccStruct_aMultiReturnFunc_177;
+__lccStruct_aMultiReturnFunc_177 aMultiReturnFunc (int x, int y) {
+  return ((__lccStruct_aMultiReturnFunc_177){x , y});
+}
+typedef struct __lccStruct_aMultiReturnFuncS_178 {
+  int a;
+  int b;
+} __lccStruct_aMultiReturnFuncS_178;
+__lccStruct_aMultiReturnFuncS_178 aMultiReturnFuncS (int x, int y) {
+  { 
+    typeof(aMultiReturnFuncS (x , y)) s = {x , y};
+    return ((__lccStruct_aMultiReturnFuncS_178)s);
+  } 
+}
+int main () {
+  { 
+    int n = 3;
+    int t = 4;
+    typeof(aMultiReturnFunc (1, 1)) mr;
+    typeof(aMultiReturnFuncS (1, 1)) mrt;
+    mr = aMultiReturnFunc (n , t);
+    printf ("a: %d, b: %d\n", (mr . a), (mr . b));
+    mrt = aMultiReturnFuncS ((++n ), (++t ));
+    printf ("a: %d, b: %d\n", (mrt . a), (mrt . b));
+  } 
 }
 ```
 ## Array
