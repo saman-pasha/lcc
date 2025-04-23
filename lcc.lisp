@@ -15,11 +15,11 @@
   (if (> (length argv) 0)
       (progn
         (loop for arg in argv
-              with argc = (1- (length argv))
+              with argc = (length argv)
               for i from 1 to argc
-              when (< i 0)
+              when (> i 0)
               do (progn
-                   (format t "~A~%" arg)
+                   (format t "arg specified: ~A~%" arg)
                    (cond
                      ((string= arg "--debug")    (setf lcc:*debug*   t))
                      ((string= arg "--warn")     (setf lcc:*warn*    t))

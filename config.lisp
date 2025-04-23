@@ -13,14 +13,14 @@
   (let ((os (software-type)))
     (cond 
       ((string= os "Linux") (list
-                             'dumper   '("-Xclang" "-ast-dump")
-                             'compiler `("libtool" "--tag=CC" "--mode=compile" "clang" "-g" "-O" ,*verbose*)
-                             'linker   '("libtool" "--tag=CC" "--mode=link" "clang" "-g" "-O" "-v")))
+                             'dumper   nil ; '("-Xclang" "-ast-dump")
+                             'compiler `("libtool" "--tag=CC" "--mode=compile" "clang" "-g" "-O" *verbose*)
+                             'linker   `("libtool" "--tag=CC" "--mode=link" "clang" "-g" "-O" *verbose*)))
       ((string= os "Darwin") (list
-                              'dumper   '("-Xclang" "-ast-dump")
-                              'compiler `("glibtool" "--tag=CC" "--mode=compile" "clang" "-g" "-O" ,*verbose*)
-                              'linker   '("glibtool" "--tag=CC" "--mode=link" "clang" "-g" "-O" "-v")))
+                              'dumper   nil ; '("-Xclang" "-ast-dump")
+                              'compiler `("glibtool" "--tag=CC" "--mode=compile" "clang" "-g" "-O" *verbose*)
+                              'linker   `("glibtool" "--tag=CC" "--mode=link" "clang" "-g" "-O" *verbose*)))
       (t (list
-          'dumper   '("-Xclang" "-ast-dump")
-          'compiler `("libtool" "--tag=CC" "--mode=compile" "clang" "-g" "-O" ,*verbose*)
-          'linker   '("libtool" "--tag=CC" "--mode=link" "clang" "-g" "-O" "-v"))))))
+          'dumper   nil ; '("-Xclang" "-ast-dump")
+          'compiler `("libtool" "--tag=CC" "--mode=compile" "clang" "-g" "-O" *verbose*)
+          'linker   `("libtool" "--tag=CC" "--mode=link" "clang" "-g" "-O" *verbose*))))))

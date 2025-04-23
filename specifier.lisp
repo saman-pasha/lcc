@@ -335,7 +335,16 @@
     (let ((typeof (if (atom type) type
                       (let ((ty (car type)))
                         (cond ((or (key-eq '|struct| ty) (key-eq '|union| ty)) type)
-                              ((key-eq '|typeof| ty) (list ty (specify-expr (cadr type))))
+                              ((key-eq '|typeof| ty) (specify-typeof-expr type))
+                              ((and (not (null *function-spec*)) (key-eq 'QUOTE ty))
+                               (let* ((fname (name *function-spec*))
+                                      (sname (if (str:starts-with-p "__lccStruct_" (symbol-name fname))
+                                                 (gensym (format nil "~A_" fname))
+                                                 (gensym (format nil "__lccStruct_~A_" fname))))
+                                      (struct-spec
+                                          (specify-struct (append (list '|struct| sname) (cadr type)) '() :inline t)))
+                                 (add-inner struct-spec *function-spec*)
+                                 sname))
                               (t (error (format nil "syntax error ~A" desc))))))))
       (unless (or (null const)     (key-eq const '|const|)) (setq status -2))
       (unless (or (null modifier)
@@ -497,11 +506,11 @@
   (when (< (length def) 2) (error (format nil "syntax error ~A" def)))
   (multiple-value-bind (const type modifier const-ptr variable array)
       (specify-type< (nthcdr 1 def))
-    (make-specifier variable '|@SIZEOF| const type modifier const-ptr array nil nil)))
+    (make-specifier variable '|@SIZEOF| const type modifier const-ptr array nil '())))
 
 (defun specify-typeof-expr (def)
   (when (< (length def) 2) (error (format nil "syntax error ~A" def)))
-  (make-specifier (cdr def) '|@TYPEOF| nil nil nil nil nil nil nil))
+  (make-specifier nil '|@TYPEOF| nil nil nil nil nil (specify-expr (cadr def)) '()))
 
 (defun specify-call-expr (def)
   (make-specifier (specify-expr (nth 0 def)) '|@CALL| nil nil nil nil nil
@@ -606,9 +615,12 @@
 	          ((and (key-eq (car type-desc) '|static|)   (= (length (cdr type-desc)) 0)) (setq is-static t))
 	          ((key-eq (car type-desc)      '|defer|)
                (let ((quoted (cadr type-desc)))
-                 (unless (and (= (length type-desc) 2) (key-eq '|lambda| (caadr quoted)))
-                   (error (format nil "wrong defer definition ~A" type-desc)))
-                 (setq has-defer quoted)))
+                 (if (key-eq '|true| quoted)
+                   (setq has-defer t)
+                   (progn
+                     (unless (and (= (length type-desc) 2) (key-eq '|lambda| (caadr quoted)))
+                       (error (format nil "wrong defer definition ~A" type-desc)))
+                     (setq has-defer quoted)))))
 	          (t (multiple-value-bind (const typeof modifier const-ptr variable array value)
 		             (specify-type-value< type-desc)
 		           (when (and (listp value) (key-eq (first value) '|alloc|))
@@ -636,7 +648,8 @@
                                           (t (error (format nil "not suitable for auto deferral alloc"))))
                                      ,variable))
                                   (|free| (|cof| ,variable))))))
-		             (when has-defer   (push (cons '|defer|    (specify-expr has-defer)) attributes))
+		             (when (and has-defer (not (eq has-defer t)))
+                       (push (cons '|defer|    (specify-expr has-defer)) attributes))
                      (add-param
                          (make-specifier variable '|@VAR| const typeof modifier const-ptr array
                                          (if (null value) nil (specify-expr value)) attributes)
@@ -664,7 +677,17 @@
     (make-specifier nil '|@SET| nil nil nil nil nil items '())))
 
 (defun specify-return-expr (def)
-  (make-specifier nil '|@RETURN| nil nil nil nil nil (specify-expr (nth 1 def)) '()))
+  (if (and (not (null *function-spec*)) (str:starts-with-p "__lccStruct_" (symbol-name (typeof *function-spec*))))
+      (make-specifier nil '|@RETURN| nil nil nil nil nil
+                      (specify-cast-expr (list '|cast|
+                                               (remove nil (list
+                                                            (const *function-spec*)
+                                                            (typeof *function-spec*)
+                                                            (modifier *function-spec*)
+                                                            (const-ptr *function-spec*)
+                                                            (array-def *function-spec*)))
+                                               (nth 1 def))) '())
+      (make-specifier nil '|@RETURN| nil nil nil nil nil (specify-expr (nth 1 def)) '())))
 
 (defun specify-if (def)
   (when (or (< (length def) 3) (> (length def) 4)) (error (format nil "wrong if form ~A" def)))
@@ -779,13 +802,18 @@
 	  (when is-static  (push (cons '|static|  t) attributes))
 	  (when is-declare (push (cons '|decl|    t) attributes))
 	  (when do-resolve (push (cons '|resolve| do-resolve) attributes))
+      ;; guard *function-spec* for inline structs and lambdas
+      (setq function-specifier (make-specifier name (if is-method '|@METHOD| '|@FUNC|)
+                                               nil nil nil nil nil nil attributes)) ;; for specify out
+      (setq tmp-specifier *function-spec*)
+      (setf *function-spec* function-specifier)
 	  (multiple-value-bind (const type modifier const-ptr variable array)
 	      (specify-type< (cdr returns) t)
-        (setq function-specifier (make-specifier name
-                                   (if is-method '|@METHOD| '|@FUNC|)
-                                   const type modifier const-ptr array nil attributes))
-        (setq tmp-specifier *function-spec*)
-        (setf *function-spec* function-specifier))
+        (setf (const function-specifier) const)
+        (setf (typeof function-specifier) type)
+        (setf (modifier function-specifier) modifier)
+        (setf (const-ptr function-specifier) const-ptr)
+        (setf (array-def function-specifier) array))
       (setf (body function-specifier) (specify-body body))
       (loop for param in params
             for i from 0 to (length params)
@@ -798,7 +826,7 @@
                     (add-param
                         (make-specifier variable '@|PARAM| const type modifier const-ptr array nil nil is-anonymous)
                       function-specifier))))
-      (setf *function-spec* tmp-specifier))
+      (setf *function-spec* tmp-specifier)) ; end of guard, revert *function-spec*
     function-specifier))
 
 (defun specify-preprocessor (def attrs)
@@ -846,7 +874,7 @@
                                        (if (null value) nil (specify-expr value)) nil) enum-specifier))))
     enum-specifier))
 
-(defun specify-struct (def attrs &key ((:nested is-nested) nil))
+(defun specify-struct (def attrs &key ((:nested is-nested) nil) ((:inline is-inline) nil))
   (when (> (length attrs) 0) (error (format nil "wrong attributes ~A" attrs)))
   (let* ((is-anonymous (or (= (length def) 1) (not (symbolp (nth 1 def)))))
 	     (name (if is-anonymous (gensym "lcc#STRUCT") (specify-name< (nth 1 def))))
@@ -860,7 +888,9 @@
       (dolist (clause clauses)
 	    (if (consp clause)
 	        (let ((construct (car clause)))
-	          (cond ((find (char (symbol-name construct) 0) "@#")
+	          (cond (is-inline (add-inner (specify-variable (append (list '|member|) clause) attributes) struct-specifier)
+		              (setq attributes '()))
+                    ((find (char (symbol-name construct) 0) "@#")
 		             (add-inner (specify-preprocessor clause attributes) struct-specifier)
 		             (setq attributes '()))
 		            ((key-eq construct '|static|)   (push clause attributes))

@@ -1,5 +1,5 @@
 (defsystem "lcc"
-  :version "0.0.6"
+  :version "0.0.7"
   :author  "Saman H. Pasha (saman.h.pasha@gmail.com)"
   :license "MIT License"
   :depends-on ("str" "cl-ppcre")
@@ -10,5 +10,5 @@
 	           (:file "core"       :depends-on ("config"))
 	           (:file "config"     :depends-on ("package"))
 	           (:file "package"))
-  :description "Lisp C Compiler, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer."
+  :description "Lisp C Compiler aka. 'El-Cici' programming language, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer."
   :in-order-to ((test-op (test-op "test"))))
