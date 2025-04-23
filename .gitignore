@@ -66,3 +66,5 @@ test/.DS_Store
 test/lambda/.DS_Store
 test/method/.DS_Store
 test/sha1/.DS_Store
+test/test.lisp
+test/main.c
