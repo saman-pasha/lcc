@@ -16,6 +16,7 @@ Lisp C Compiler aka. 'El-Cici' programming language, which compiles Lisp-like sy
 * auto deferral is a way let expressions will defined to automatically release dynamic memory allocated by `alloc` clause. refer to [alloc](test/lambda) test folder `defer.lisp` sample.
 * `method` clause will receive current instance or pointer as `this` parameter. Methods are defined outside a structure by access method operator `->` placed between struct name and method name like `Employee->Sign`.  refer to [method](test/method) test folder `method.lisp` sample.
 * `auto` variable type simplifies lambda and function pointer variables. also `typeof` clause is added to use other variables type for define another variable.
+* `inline struct` can be defined in variable declaration, function parameters or outputs which permits to return multiple values from a function. refer to [multi](test) `multi.lisp` file for complex samples.
 * `func` type allows developer to define a function pointer which wasn't available before.
 * refer to [basic](test) `basic.lisp` file for some struct definition samples.
 * refer to [control](test) `control.lisp` file for some control structures samples.
@@ -668,7 +669,6 @@ lcc has some points on functions:
     * {inline}
     * {extern}
     * {resolve #f) means do not resolve this function
-* Each declared function defined a function pointer typedef named FunctionName_t.
 ```lisp
 (source "main.c"
   (:std #t :compile #t :link #t)
@@ -719,6 +719,57 @@ int main () {
 }
 int addition (int * a, int * b) {
   return ((*a) +  (*b));
+}
+```
+* Functions can return multiple values by inline structs.
+```lisp
+(source "main.c" (:std #t :compile #t :link #t)
+        (func aMultiReturnFunc ((int x) (int y)) (out '{(int a) (int b)})
+              (return '{ x y }))
+
+        (func aMultiReturnFuncS ((int x) (int y)) (out '{(int a) (int b)})
+              (let (((typeof (aMultiReturnFuncS x y)) s . '{ x y })) 
+                (return s)))
+        
+        (func main ()
+              (let ((int n . 3)
+                    (int t . 4)
+                    ((typeof (aMultiReturnFunc 1 1)) mr)
+                    ((typeof (aMultiReturnFuncS 1 1)) mrt))
+                (set mr (aMultiReturnFunc n t))
+                (printf "a: %d, b: %d\n" ($ mr a) ($ mr b))
+                (set mrt (aMultiReturnFuncS (++ n) (++ t)))
+                (printf "a: %d, b: %d\n" ($ mrt a) ($ mrt b)))))
+```
+```c
+typedef struct __lccStruct_aMultiReturnFunc_177 {
+  int a;
+  int b;
+} __lccStruct_aMultiReturnFunc_177;
+__lccStruct_aMultiReturnFunc_177 aMultiReturnFunc (int x, int y) {
+  return ((__lccStruct_aMultiReturnFunc_177){x , y});
+}
+typedef struct __lccStruct_aMultiReturnFuncS_178 {
+  int a;
+  int b;
+} __lccStruct_aMultiReturnFuncS_178;
+__lccStruct_aMultiReturnFuncS_178 aMultiReturnFuncS (int x, int y) {
+  { 
+    typeof(aMultiReturnFuncS (x , y)) s = {x , y};
+    return ((__lccStruct_aMultiReturnFuncS_178)s);
+  } 
+}
+int main () {
+  { 
+    int n = 3;
+    int t = 4;
+    typeof(aMultiReturnFunc (1, 1)) mr;
+    typeof(aMultiReturnFuncS (1, 1)) mrt;
+    mr = aMultiReturnFunc (n , t);
+    printf ("a: %d, b: %d\n", (mr . a), (mr . b));
+    mrt = aMultiReturnFuncS ((++n ), (++t ));
+    printf ("a: %d, b: %d\n", (mrt . a), (mrt . b));
+  } 
 }
 ```
 ## Array
