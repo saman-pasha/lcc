@@ -888,7 +888,8 @@
       (dolist (clause clauses)
 	    (if (consp clause)
 	        (let ((construct (car clause)))
-	          (cond (is-inline (add-inner (specify-variable (append (list '|member|) clause) attributes) struct-specifier)
+	          (cond (is-inline
+                      (add-inner (specify-variable (append (list '|member|) clause) attributes) struct-specifier)
 		              (setq attributes '()))
                     ((find (char (symbol-name construct) 0) "@#")
 		             (add-inner (specify-preprocessor clause attributes) struct-specifier)
