@@ -71,3 +71,15 @@ test/main.c
 test/multi.c.run1.c
 test/multi.c.run2.c
 test/multi.c.run3.c
+test/basic.c.run1.c
+test/basic.c.run2.c
+test/basic.c.run3.c
+test/lambda/main
+test/method/main
+test/module/main
+test/module/main.c.run1.c
+test/module/main.c.run2.c
+test/module/main.c.run3.c
+test/module/module.c.run1.c
+test/module/module.c.run2.c
+test/module/module.c.run3.c

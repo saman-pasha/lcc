@@ -100,6 +100,7 @@
    (1 . header)
    (1 . source)
    (1 . guard)
+   (1 . module)
    (1 . include)
    (1 . var)
    (1 . lambda)
