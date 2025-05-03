@@ -2,7 +2,7 @@
 Lisp C Compiler aka. 'Cicili' programming language, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
 ## Instruction
 * Install [SBCL](www.sbcl.org).
-* `clang` required for compiling and linking. `apt` or `brew` can be used to install clang. [Clang](https://clang.llvm.org). Current used version: `(clang-1700.0.13.3)`
+* `clang` required for compiling and linking. `apt` or `brew` can be used to install [Clang](https://clang.llvm.org). Current used version: `(clang-1700.0.13.3)`
 * lcc uses [Libtool](https://www.gnu.org/software/libtool) as default for perfoming better compiling and linking `C` code. Install it for your platform and put it in the `PATH` environment variable. Compiler and linker could be set in `config.lisp` file. Current used version: `(GNU libtool) 2.5.4`
 * Download and copy lcc folder to `~/common-lisp` for enabling [ASDF](https://common-lisp.net/project/asdf) access to lcc package.
 * Write your own lcc code and save it in `.lcc` or `.lisp` extension.
