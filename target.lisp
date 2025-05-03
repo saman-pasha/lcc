@@ -34,9 +34,6 @@
 		            ((key-eq construct '|include|)
 		             (add-inner (specify-include  clause attributes) target-specifier)
 		             (setq attributes '()))
-		            ((key-eq construct '|guard|)
-		             (add-inner (specify-guard    clause attributes) target-specifier)
-		             (setq attributes '()))
 		            ((key-eq construct '|var|)
 		             (add-inner (specify-variable clause attributes) target-specifier)
 		             (setq attributes '()))
@@ -58,6 +55,12 @@
 		            ((key-eq construct '|typedef|)
 		             (add-inner (specify-typedef  clause attributes) target-specifier)
 		             (setq attributes '()))
+		            ((key-eq construct '|guard|)
+		             (add-inner (specify-guard    clause attributes) target-specifier)
+		             (setq attributes '()))
+                    ((key-eq construct '|module|)
+		             (add-inner (specify-module   clause attributes) target-specifier)
+		             (setq attributes '()))
 		            (t (error (format nil "unknown clause ~A in target ~A" construct name)))))
 	        (error (format nil "syntax error ~A" clause))))
       target-specifier)))
@@ -73,7 +76,9 @@
 			          :if-does-not-exist :create
 			          :if-exists :supersede)))
         (error (format t "target should be a file path")))
-    (if dump (format t "lcc: resolving target ~A~%" file) (format t "lcc: compiling target ~A~%" file))
+    (if (and dump (not header))
+        (format t "lcc: resolving target ~A~%" file)
+        (format t "lcc: compiling target ~A~%" file))
     (unwind-protect
          (handler-case 
 	         (progn
@@ -103,6 +108,7 @@
 			                  ('|@STRUCT|   (compile-struct       in-spec 0 globals))
 			                  ('|@UNION|    (compile-union        in-spec 0 globals))
 			                  ('|@GUARD|    (compile-guard        in-spec 0 globals))
+			                  ('|@MODULE|   (compile-module       in-spec 0 globals))
 			                  (otherwise
                                (error (format nil "unknown construct ~A in ~A" (construct in-spec) in-name)))))
 		                (inners spec))
@@ -121,15 +127,26 @@
                              (progn
 		                       (if (key-eq custom '|true|)
                                    (setq custom (list "-c" file))
-                                   (if (stringp custom)
-                                       (setq custom (str:split " " custom))
-                                       (setq custom (append custom (list "-c" file)))))
+                                   (progn
+                                     (setq custom (str:split "\\s+" custom :regex t))
+                                     (let ((found nil)
+                                           (cset nil))
+                                       (loop for carg in custom
+                                             for i from 0 to (length custom)
+                                             do (if (or (string-equal carg "-c") (string-equal carg "--compile"))
+                                                    (setq found t)
+                                                    (when found
+                                                      (setq cset t)
+                                                      (setf (nth i custom) file)
+                                                      (return))))
+                                           (unless (and found cset)
+                                             (error
+                                              (format nil "custom compilation missed -c or --compile flag: ~A" custom))))))
                                (let ((cwd       (uiop/os:getcwd))
                                      (args      `(,program ,@arguments ,@custom))
                                      (dump-args `(,program ,@arguments ,@dumper ,@custom)))
                                  (setq args      (replace-args< `(("{$CWD}" ,cwd)) args))
                                  (setq dump-args (replace-args< `(("{$CWD}" ,cwd)) dump-args))
-                                 ;; (display "ARGS" args)
                                  (if dump
                                      (uiop:run-program dump-args :input nil :output stdout :error-output stderr)
 		                             (uiop:run-program args :input nil :output stdout :error-output stderr))))

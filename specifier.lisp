@@ -10,6 +10,8 @@
    (const-ptr     :initarg :const-ptr :accessor const-ptr)
    (array-def     :initarg :array-def :accessor array-def)
    (default       :initarg :default   :accessor default)
+   (module        :initform nil :accessor module)
+   (unique        :initform nil :accessor unique)
    (attrs         :initarg :attrs     :accessor attrs)
    (anonymous     :initarg :anonymous :initform nil :accessor anonymous)
    (body          :initform nil :accessor body)
@@ -29,31 +31,55 @@
 				                 :default   default
 				                 :attrs     attrs
 				                 :anonymous anonymous)))
-    (cond ((eql construct '|@LET|)
+    
+    (cond ((eql construct '|@VAR|)
+           (when *module-path*
+             (setf (module instance) *module-path*)
+             (setf (unique instance) (free-name *module-path* name))))
+          ((eql construct '|@LET|)
 	       (setf (params  instance)     (make-hash-table :test 'eql)))
 	      ((eql construct '|@FOR|)
 	       (setf (params  instance)     (make-hash-table :test 'eql)))
 	      ((eql construct '|@FUNC|)
+           (when *module-path*
+             (setf (module instance) *module-path*)
+             (setf (unique instance) (free-name *module-path* name)))
 	       (setf (params  instance)     (make-hash-table :test 'eql))
  	       (setf (inners  instance)     (make-hash-table :test 'eql))) ; contains lambdas
 	      ((eql construct '|@METHOD|)
+             (setf (module instance) *module-path*)
+             (setf (unique instance)
+                   (intern (format nil "~A_~A" (symbol-name (free-name *module-path* (car name))) (cdr name))))
 	       (setf (params  instance)     (make-hash-table :test 'eql))
  	       (setf (inners  instance)     (make-hash-table :test 'eql))) ; contains lambdas
 	      ((eql construct '|@ENUM|)
+           (when *module-path*
+             (setf (module instance) *module-path*)
+             (setf (unique instance) (free-name *module-path* name)))
  	       (setf (inners  instance)     (make-hash-table :test 'eql)))
 	      ((eql construct '|@STRUCT|)
+           (when *module-path*
+             (setf (module instance) *module-path*)
+             (setf (unique instance) (free-name *module-path* name)))
 	       (setf (params  instance)     (make-hash-table :test 'eql))
 	       (setf (inners  instance)     (make-hash-table :test 'eql)))
 	      ((eql construct '|@UNION|)
+           (when *module-path*
+             (setf (module instance) *module-path*)
+             (setf (unique instance) (free-name *module-path* name)))
 	       (setf (params  instance)     (make-hash-table :test 'eql))
 	       (setf (inners  instance)     (make-hash-table :test 'eql)))
 	      ((eql construct '|@GUARD|)
 	       (setf (inners  instance)     (make-hash-table :test 'eql)))
+	      ((eql construct '|@MODULE|)
+           (when *module-path*
+             (setf (module instance) *module-path*)
+             (setf (unique instance) (free-name *module-path* name)))
+           (setf (inners  instance)     (make-hash-table :test 'eql)))
 	      ((eql construct '|@TARGET|)
 	       (setf (inners  instance)     (make-hash-table :test 'eql)))
 	      (t t))
     instance))
-
 
 (defun add-param (spec parent)
   (if (gethash (name spec) (params parent))
@@ -114,8 +140,12 @@
 (defun print-specifiers (table &optional (lvl 0))
   (maphash #'(lambda (k v) (print-specifier v lvl)) table))
 
+(defun specify-decl-name< (name)
+  (if (is-decl-name name) name
+      (error (format nil "wrong name ~S" name))))
+
 (defun specify-name< (name)
-  (if (is-name name) name
+  (if (is-name name) (specify-typeof< name)
       (error (format nil "wrong name ~S" name))))
 
 (defun specify-receiver< (name)
@@ -123,8 +153,8 @@
     (unless (= (length parts) 2) (error (format nil "wrong receiver ~S" name)))
     (let ((receiver (intern (nth 0 parts)))
           (method (intern (nth 1 parts))))
-      (if (and (is-name receiver) (is-name method))
-          (cons receiver method)
+      (if (and (is-name receiver) (is-symbol method))
+          (cons (specify-name< receiver) (specify-name< method))
           (error (format nil "wrong receiver ~S" name))))))
 
 (defun specify-type-name< (name)
@@ -147,6 +177,34 @@
 	    ((key-eq name '|real|)   "long double")
 	    ((key-eq name '|auto|)   "__auto_type")
 	    (t (specify-name< name))))
+
+(defun specify-name-with-module< (symbol)
+  (let* ((str-name (symbol-name symbol))
+         (count$ (str:count-substring "/" str-name)))
+    (cond ((str:starts-with-p "/" str-name)
+           (intern (str:substring 1 t str-name)))
+          ((> count$ 0) (free-name (map 'list #'intern (str:split "/" str-name)) nil))
+          (t symbol))))
+
+(defun specify-typeof< (type)
+  (if (atom type)
+      (if (typep type 'sp)
+          (progn (setf (name type) (specify-name-with-module< (name type)))
+            type)
+          (specify-name-with-module< type))
+      (let ((ty (car type)))
+        (cond ((or (key-eq '|struct| ty) (key-eq '|union| ty))
+               (list ty (specify-name-with-module< (cadr type))))
+              ((key-eq '|typeof| ty) (specify-typeof-expr type))
+              ((and (not (null *function-spec*)) (key-eq 'QUOTE ty)) ; inline struct
+               (let* ((fname (name *function-spec*))
+                      (sname (if (str:starts-with-p "__lccStruct_" (symbol-name fname))
+                                 (intern (format nil "~A_" fname))
+                                 (intern (format nil "__lccStruct_~A_" fname))))
+                      (struct-spec (specify-struct (append (list '|struct| sname) (cadr type)) '() :inline t)))
+                 (add-inner struct-spec *function-spec*)
+                 (list '|struct| (if *module-path* (free-name *module-path* sname) sname))))
+              (t (error (format nil "syntax error ~A" type)))))))
 
 (defun specify-type< (desc &optional noVar)
   (let ((len (if (listp desc) (length desc) 1))
@@ -332,44 +390,31 @@
 		               (setq variable (nth 4 desc))
 		               (setq array (nth 5 desc))))
 	      (t (setq status -1)))
-    (let ((typeof (if (atom type) type
-                      (let ((ty (car type)))
-                        (cond ((or (key-eq '|struct| ty) (key-eq '|union| ty)) type)
-                              ((key-eq '|typeof| ty) (specify-typeof-expr type))
-                              ((and (not (null *function-spec*)) (key-eq 'QUOTE ty))
-                               (let* ((fname (name *function-spec*))
-                                      (sname (if (str:starts-with-p "__lccStruct_" (symbol-name fname))
-                                                 (gensym (format nil "~A_" fname))
-                                                 (gensym (format nil "__lccStruct_~A_" fname))))
-                                      (struct-spec
-                                          (specify-struct (append (list '|struct| sname) (cadr type)) '() :inline t)))
-                                 (add-inner struct-spec *function-spec*)
-                                 sname))
-                              (t (error (format nil "syntax error ~A" desc))))))))
-      (unless (or (null const)     (key-eq const '|const|)) (setq status -2))
-      (unless (or (null modifier)
-                (key-eq modifier '&)
-                (key-eq modifier '*)
-                (key-eq modifier '**)
-                (key-eq modifier '***))
-        (setq status -3))
-      (unless (or (null const-ptr) (key-eq const-ptr '|const|)) (setq status -4))
-      (unless (or (null const-ptr)
-                (key-eq modifier '*)
-                (key-eq modifier '**)
-                (key-eq modifier '***))
-        (setq status -5))
-      (when noVar (unless (null variable) (setq status -6)))
-      (if (key-eq type '|func|)
-          (progn
-            (when (null array) (setq status -7))
-            (setq array (list array)))
-          (if (and (= (length array) 2) (is-array (car array)) (is-array (cadr array)))
-              (setq array (list (specify-expr (nth 1 (car array))) (specify-expr (nth 1 (cadr array)))))
-              (when (= (length array) 3)
-                (setq array (list (specify-expr (nth 1 array)))))))
-      (when   (< status 0) (error (format nil "wrong type descriptor ~D ~A" status desc)))
-      (values const typeof modifier const-ptr variable array))))
+    (setq type (specify-typeof< type))
+    (unless (or (null const)     (key-eq const '|const|)) (setq status -2))
+    (unless (or (null modifier)
+              (key-eq modifier '&)
+              (key-eq modifier '*)
+              (key-eq modifier '**)
+              (key-eq modifier '***))
+      (setq status -3))
+    (unless (or (null const-ptr) (key-eq const-ptr '|const|)) (setq status -4))
+    (unless (or (null const-ptr)
+              (key-eq modifier '*)
+              (key-eq modifier '**)
+              (key-eq modifier '***))
+      (setq status -5))
+    (when noVar (unless (null variable) (setq status -6)))
+    (if (key-eq type '|func|)
+        (progn
+          (when (null array) (setq status -7))
+          (setq array (list array)))
+        (if (and (= (length array) 2) (is-array (car array)) (is-array (cadr array)))
+            (setq array (list (specify-expr (nth 1 (car array))) (specify-expr (nth 1 (cadr array)))))
+            (when (= (length array) 3)
+              (setq array (list (specify-expr (nth 1 array)))))))
+    (when   (< status 0) (error (format nil "wrong type descriptor ~D ~A" status desc)))
+    (values const type modifier const-ptr variable array)))
 
 (defun specify-type-value< (desc)
   (let ((l (cdr (last desc)))
@@ -412,7 +457,7 @@
   (make-specifier (format nil "\"~A\"" def) '|@ATOM| nil '|@STRING| nil nil nil nil '()))
 
 (defun specify-symbol-expr (def)
-  (make-specifier def '|@ATOM| nil '|@SYMBOL| nil nil nil nil '()))
+  (make-specifier (specify-name< def) '|@ATOM| nil '|@SYMBOL| nil nil nil nil '()))
 
 (defun specify-atom-expr (def)
   (cond ((null       def) (make-specifier nil '|@NIL| nil nil nil nil nil nil '())) ; ignore nil values like ([ NIL ])
@@ -461,7 +506,10 @@
       (push oprnd oprnds))
     (make-specifier opr '|@OPR| nil nil nil nil nil
                     (loop for frm in (cdr (reverse oprnds))
-                          collect (specify-expr frm)) '())))
+                          for i from 0 to (length oprnds)
+                          collect (if (= (mod i 2) 0)
+                                      (specify-expr frm)
+                                      (make-specifier frm '|@SYMBOL| nil '|@SYMBOL| nil nil nil nil '()))) '())))
 
 (defun specify-assignment-expr (def)
   (unless (= (length def) 3) (error (format nil "wrong assignment form ~A" def)))
@@ -485,9 +533,12 @@
 
 (defun specify-cast-expr (def)
   (unless (= (length def) 3) (error (format nil "wrong cast form ~A" def)))
-  (multiple-value-bind (const type modifier const-ptr variable array)
-	  (specify-type< (nth 1 def))
-    (make-specifier variable '|@CAST| const type modifier const-ptr array (specify-expr (nth 2 def)) '())))
+  (let ((ty (nth 1 def)))
+    (multiple-value-bind (const type modifier const-ptr variable array)
+	    (specify-type< (if (and (listp ty) (key-eq '|typeof| (car ty))) (list ty) ty))
+      (make-specifier
+          (specify-decl-name< variable)
+        '|@CAST| const type modifier const-ptr array (specify-expr (nth 2 def)) '()))))
 
 (defun specify-$-expr (def)
   (unless (= (length def) 3) (error (format nil "wrong access member $ form ~A" def)))
@@ -506,7 +557,7 @@
   (when (< (length def) 2) (error (format nil "syntax error ~A" def)))
   (multiple-value-bind (const type modifier const-ptr variable array)
       (specify-type< (nthcdr 1 def))
-    (make-specifier variable '|@SIZEOF| const type modifier const-ptr array nil '())))
+    (make-specifier (specify-decl-name< variable) '|@SIZEOF| const type modifier const-ptr array nil '())))
 
 (defun specify-typeof-expr (def)
   (when (< (length def) 2) (error (format nil "syntax error ~A" def)))
@@ -531,7 +582,7 @@
                                             (gensym (format nil "__lccLambda_~A_" fname))))
                                  (func-spec (specify-function (append (list '|lambda| lname) (cdr quoted)) '())))
                             (add-inner func-spec *function-spec*)
-                            (specify-symbol-expr lname))
+                            (specify-symbol-expr (if *module-path* (free-name *module-path* lname) lname)))
                           (specify-list-expr quoted))))   ; list
 		           ((and (> (length def) 2) (key-eq func '\|) (key-eq (cadr def) '\|))
 		            (specify-operator-expr (push '\|\| (cddr def))))
@@ -567,7 +618,7 @@
 	    (when is-static   (push (cons '|static|   t) attributes))
 	    (when is-register (push (cons '|register| t) attributes))
 	    (when is-auto     (push (cons '|auto|     t) attributes))
-	    (make-specifier variable '|@VAR| const type modifier const-ptr array
+	    (make-specifier (specify-decl-name< variable) '|@VAR| const type modifier const-ptr array
                         (if (null default) nil (specify-expr default)) attributes)))))
 
 (defun specify-body (def)
@@ -651,7 +702,7 @@
 		             (when (and has-defer (not (eq has-defer t)))
                        (push (cons '|defer|    (specify-expr has-defer)) attributes))
                      (add-param
-                         (make-specifier variable '|@VAR| const typeof modifier const-ptr array
+                         (make-specifier (specify-decl-name< variable) '|@VAR| const typeof modifier const-ptr array
                                          (if (null value) nil (specify-expr value)) attributes)
                        let-var))
                    (setq is-static   nil)
@@ -677,7 +728,7 @@
     (make-specifier nil '|@SET| nil nil nil nil nil items '())))
 
 (defun specify-return-expr (def)
-  (if (and (not (null *function-spec*)) (str:starts-with-p "__lccStruct_" (symbol-name (typeof *function-spec*))))
+  (if (and (not (null *function-spec*)) (listp (typeof *function-spec*)))
       (make-specifier nil '|@RETURN| nil nil nil nil nil
                       (specify-cast-expr (list '|cast|
                                                (remove nil (list
@@ -749,9 +800,9 @@
 		           (when is-auto     (push (cons '|auto|     t) attributes))
                    (add-param
                        (if (null variable)
-                           (make-specifier typeof '|@VAR| const variable modifier const-ptr array
+                           (make-specifier (specify-decl-name< typeof) '|@VAR| const variable modifier const-ptr array
                                            (if (null value) nil (specify-expr value)) attributes)
-                           (make-specifier variable '|@VAR| const typeof modifier const-ptr array
+                           (make-specifier (specify-decl-name< variable) '|@VAR| const typeof modifier const-ptr array
                                            (if (null value) nil (specify-expr value)) attributes))
                      for-var))))))
     (setf (body for-var) (specify-body (nthcdr 4 def)))
@@ -815,6 +866,13 @@
         (setf (const-ptr function-specifier) const-ptr)
         (setf (array-def function-specifier) array))
       (setf (body function-specifier) (specify-body body))
+	  (when is-method
+        (add-param
+            (make-specifier (specify-decl-name< '|this|) '|@PARAM| nil
+                            (if *module-path*
+                                (free-name *module-path* (car name))
+                                (car name)) '|*| nil nil nil '())
+        function-specifier))
       (loop for param in params
             for i from 0 to (length params)
             do (let ((is-anonymous nil))
@@ -824,7 +882,9 @@
                       (setq variable (gensym (format nil "_lccParam_~D" i))))
 	                  ; (setq is-anonymous t))
                     (add-param
-                        (make-specifier variable '@|PARAM| const type modifier const-ptr array nil nil is-anonymous)
+                        (make-specifier
+                            (specify-decl-name< variable)
+                          '@|PARAM| const type modifier const-ptr array nil nil is-anonymous)
                       function-specifier))))
       (setf *function-spec* tmp-specifier)) ; end of guard, revert *function-spec*
     function-specifier))
@@ -853,12 +913,12 @@
   (multiple-value-bind (const type modifier const-ptr variable array)
       (specify-type< (nthcdr 1 def))
 	(when (null variable) (error (format nil "syntax error ~A" def)))
-    (make-specifier variable '|@TYPEDEF| const type modifier const-ptr array nil nil)))
+    (make-specifier (specify-decl-name< variable) '|@TYPEDEF| const type modifier const-ptr array nil nil)))
 
-(defun specify-enum (def attrs)
+(defun specify-enum (def attrs &key ((:nested is-nested) nil))
   (when (> (length attrs) 0) (error (format nil "wrong attributes ~A" attrs)))
   (let* ((is-anonymous (or (= (length def) 1) (not (symbolp (nth 1 def)))))
-	     (name (if is-anonymous (gensym "lcc#ENUM") (specify-name< (nth 1 def))))
+	     (name (specify-decl-name< (if is-anonymous (gensym "lccEnum") (nth 1 def))))
 	     (constants (if is-anonymous (nthcdr 1 def) (nthcdr 2 def)))
 	     (enum-specifier (make-specifier name '|@ENUM| nil nil nil nil nil nil nil)))
     (setf (anonymous enum-specifier) is-anonymous)
@@ -877,7 +937,7 @@
 (defun specify-struct (def attrs &key ((:nested is-nested) nil) ((:inline is-inline) nil))
   (when (> (length attrs) 0) (error (format nil "wrong attributes ~A" attrs)))
   (let* ((is-anonymous (or (= (length def) 1) (not (symbolp (nth 1 def)))))
-	     (name (if is-anonymous (gensym "lcc#STRUCT") (specify-name< (nth 1 def))))
+	     (name (specify-decl-name< (if is-anonymous (gensym "lccStruct") (nth 1 def))))
 	     (clauses (if is-anonymous (nthcdr 1 def) (nthcdr 2 def)))
 	     (struct-specifier (make-specifier name '|@STRUCT| nil nil nil nil nil nil nil)))
     (when (and is-anonymous (not is-nested)) (error (format nil "only nested structs could be anonymous")))
@@ -904,7 +964,7 @@
 		             (add-inner (specify-variable clause attributes) struct-specifier)
 		             (setq attributes '()))
 		            ((key-eq construct '|enum|)
-		             (add-inner (specify-enum     clause attributes) struct-specifier)
+		             (add-inner (specify-enum     clause attributes :nested t) struct-specifier)
 		             (setq attributes '()))
 		            ((key-eq construct '|struct|)
 		             (add-inner (specify-struct   clause attributes :nested t) struct-specifier)
@@ -930,7 +990,7 @@
 (defun specify-union (def attrs &key ((:nested is-nested) nil))
   (when (> (length attrs) 0) (error (format nil "wrong attributes ~A" attrs)))
   (let* ((is-anonymous (or (= (length def) 1) (not (symbolp (nth 1 def)))))
-	     (name (if is-anonymous (gensym "lcc#UNION") (specify-name< (nth 1 def))))
+	     (name (specify-decl-name< (if is-anonymous (gensym "lccUnion") (nth 1 def))))
 	     (clauses (if is-anonymous (nthcdr 1 def) (nthcdr 2 def)))
 	     (union-specifier (make-specifier name '|@UNION| nil nil nil nil nil nil nil)))
     (when (and is-anonymous (not is-nested)) (error (format nil "only nested unions could be anonymous")))
@@ -969,7 +1029,7 @@
 
 (defun specify-guard (def attrs)
   (when (> (length attrs) 0) (error (format nil "wrong attributes ~A" attrs)))
-  (let* ((name (specify-name< (nth 1 def)))
+  (let* ((name (specify-decl-name< (nth 1 def)))
 	     (clauses (nthcdr 2 def))
 	     (guard-specifier (make-specifier name '|@GUARD| nil nil nil nil nil nil nil)))
     (let ((attributes '()))
@@ -986,9 +1046,6 @@
 		            ((key-eq construct '|auto|)     (push clause attributes))
 		            ((key-eq construct '|extern|)   (push clause attributes))
 		            ((key-eq construct '|include|)  (setq attributes '()))
-		            ((key-eq construct '|guard|)
-		             (add-inner (specify-guard    clause attributes) guard-specifier)
-		             (setq attributes '()))
 		            ((key-eq construct '|var|)
 		             (add-inner (specify-variable clause attributes) guard-specifier)
 		             (setq attributes '()))
@@ -1009,6 +1066,12 @@
 		             (setq attributes '()))
 		            ((key-eq construct '|typedef|)
 		             (add-inner (specify-typedef  clause attributes) guard-specifier)
+		             (setq attributes '()))
+		            ((key-eq construct '|guard|)
+		             (add-inner (specify-guard    clause attributes) guard-specifier)
+		             (setq attributes '()))
+		            ((key-eq construct '|module|)
+		             (add-inner (specify-module   clause attributes) guard-specifier)
 		             (setq attributes '()))
 		            (t (error (format nil "unknown clause ~A in guard ~A" construct name)))))
 	        (error (format nil "syntax error ~A" clause)))))

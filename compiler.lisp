@@ -34,6 +34,8 @@
       (setf *target-spec* ir)
       (setf *target-file* (file-namestring (name ir)))
 	  (cond ((or (key-eq name '|source|) (key-eq name '|header|)) ; target
+             (setf *target-header* (key-eq name '|header|))
+             (setf *target-source* (key-eq name '|source|))
              (let ((file (name ir))
                    (globals nil)
                    (reached-translation-unit nil)

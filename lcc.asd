@@ -1,10 +1,11 @@
 (defsystem "lcc"
-  :version "0.0.7"
-  :author  "Saman H. Pasha (saman.h.pasha@gmail.com)"
+  :version "0.0.8"
+  :author  "Saman Heidarzadeh Pasha (saman.h.pasha@gmail.com)"
   :license "MIT License"
-  :depends-on ("str" "cl-ppcre")
+  :depends-on ("sha1" "base64" "str" "cl-ppcre")
   :components ((:file "compiler"   :depends-on ("target"))
-	           (:file "target"     :depends-on ("backend"))
+	           (:file "target"     :depends-on ("module" "backend"))
+	           (:file "module"     :depends-on ("backend"))
 	           (:file "backend"    :depends-on ("specifier"))
 	           (:file "specifier"  :depends-on ("core"))
 	           (:file "core"       :depends-on ("config"))

@@ -53,6 +53,14 @@
 (defparameter *target-spec* nil)
 ;; storing file name during compiling
 (defparameter *target-file* "main.c")
+;; current target is header
+(defparameter *target-header* nil)
+;; current target is source
+(defparameter *target-source* nil)
+;; current module spec during module compiling
+(defparameter *module-spec* nil)
+;; current module spec during module compiling
+(defparameter *module-path* nil)
 ;; current function spec during function compiling
 (defparameter *function-spec* nil)
 ;; resolve current function
@@ -69,14 +77,14 @@
   (let* ((line-n  (funcall *line-num* 0))
          (col-n   (funcall *col-num* 0))
          (ast-key (ast-key< (+ line-n plus-line) (+ col-n plus-col))))
-    (when *debug* (display "M:" ast-key *ast-run* (gethash ast-key (nth 1 *ast-lines*)) #\NewLine))
+    (when *debug* (display "M:" ast-key (gethash ast-key (nth 1 *ast-lines*)) #\NewLine))
     (gethash ast-key (nth 1 *ast-lines*))))
 
 (defun current-resolved< (&optional (plus-line 0) (plus-col 0))
   (let* ((line-n  (funcall *line-num* 0))
          (col-n   (funcall *col-num* 0))
          (ast-key (ast-key< (+ line-n plus-line) (+ col-n plus-col))))
-    (when *debug* (display "R:" ast-key *ast-run* (gethash ast-key (nth *ast-run* *ast-lines*)) #\NewLine))
+    (when *debug* (display "R:" ast-key (gethash ast-key (nth *ast-run* *ast-lines*)) #\NewLine))
     (getf (gethash ast-key (nth *ast-run* *ast-lines*)) 'res)))
 
 (defmacro set-ast-line (out)
@@ -186,14 +194,16 @@
 (defun indent (lvl)
   (make-string (* lvl 2) :initial-element #\Space))
 
-(defun is-name (name)
+(defun is-name (name) (symbolp name))
+
+(defun is-decl-name (name)
   (let ((name (symbol-name name)))
     (cond ((string= name "const") nil)
-	      ((not (find (char name 0) "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")) nil)
+	      ((not (find (char name 0) "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_.")) nil)
 	      (t (progn
 	           (dotimes (i (- (length name) 1))
-		         (unless (find (char name (+ i 1)) "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890")
-		           (return-from is-name nil)))
+		         (unless (find (char name (+ i 1)) "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890_.")
+		           (return-from is-decl-name nil)))
 	           t)))))
 
 (defun is-symbol (name)
@@ -201,7 +211,7 @@
     (cond ((string= name "const") nil)
 	      (t (progn
 	           (dotimes (i (length name))
-		         (unless (find (char name i) "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890")
+		         (unless (find (char name i) "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_1234567890_")
 		           (return-from is-symbol nil)))
 	           t)))))
 
@@ -218,3 +228,16 @@
             when (or (symbolp arg) (> (length arg) 0))
             collect (str:replace-all (car nv) (uiop:native-namestring (cadr nv))
                                      (if (symbolp arg) (symbol-value arg) arg))))))
+
+(defun free-name (path name)
+  ;; (when (listp name) (error (format nil "wrong object name inside module: ~A ~A" path name)))
+  (intern
+   (format nil "lcc~A"
+           (str:replace-all "[=+/]" "_"
+                            (sha1:sha1-base64
+                                (format nil "~{~A~}"
+                                        (map 'list #'(lambda (x) (if (typep x 'sp) (symbol-name (name x))
+                                                                     (symbol-name x)))
+                                             (append path (if (listp name) name (list name)))))
+                              #'base64:base64-encode)
+                            :regex t))))
