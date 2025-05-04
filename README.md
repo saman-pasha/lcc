@@ -1,3 +1,5 @@
+# Notic
+This reposirory will be known by a different brand `Cicili` and archived. lcc moves to [github.com/saman-pasha/cicili](github.com/saman-pasha/cicili).
 # lcc
 Lisp C Compiler aka. 'Cicili' programming language, which compiles Lisp-like syntax to C code and more extra features like method, lambda, defer.
 ## Instruction
